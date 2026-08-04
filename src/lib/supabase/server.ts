@@ -13,15 +13,18 @@ export function createSupabaseServerClient() {
     key!,
     {
       cookies: {
-        getAll() {
+        async getAll() {
+          const cookieStore = await cookies()
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        async setAll(cookiesToSet) {
           try {
+            const cookieStore = await cookies();
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             );
-          } catch {
+          } catch (error) {
+            console.error('设置 cookie 失败:', error)
             // Ignored when called from a Server Component during render.
           }
         },

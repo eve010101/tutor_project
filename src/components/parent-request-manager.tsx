@@ -89,7 +89,7 @@ export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
                     </h3>
                     <span
                       className={
-                        status === "招聘中"
+                        status === "招募中"
                           ? "rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700"
                           : "rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-700"
                       }
@@ -112,7 +112,7 @@ export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
-                  {status === "招聘中" ? (
+                  {status === "招募中" ? (
                     <Button
                       className="w-full lg:w-36"
                       disabled={busy}

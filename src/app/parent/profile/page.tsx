@@ -72,7 +72,7 @@ export default async function ParentProfilePage() {
   );
 
   const openRequests = requests.filter(
-    (item) => normalizeParentRequestStatus(item.status) === "招聘中"
+    (item) => normalizeParentRequestStatus(item.status) === "招募中"
   ).length;
   const closedRequests = requests.length - openRequests;
   const receivedInterest = matches.filter((item) => item.tutor_interested);
