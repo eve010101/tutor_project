@@ -31,7 +31,19 @@ type AuthMode = "login" | "register" | "reset";
 type NoticeTone = "idle" | "error" | "success";
 
 function getRolePath(role?: string | null) {
-  return role === "parent" ? "/parent/request" : "/tutor/profile";
+  return role === "parent" ? "/parent/profile" : "/tutor/profile";
+}
+
+function getLoginPath(role?: string | null) {
+  return role === "parent" ? "/tutors" : "/tutor/requests";
+}
+
+function maskPhone(phone: string) {
+  if (phone.length < 7) {
+    return phone;
+  }
+
+  return `${phone.slice(0, 5)}****${phone.slice(-4)}`;
 }
 
 export function AuthPanel() {
@@ -74,42 +86,91 @@ export function AuthPanel() {
     setBusy(true);
     setFeedback("idle", "");
 
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone,
-        password: registerPassword,
+    try {
+      console.log("[register] submit", {
+        phone: maskPhone(phone),
         role: registerRole,
-      }),
-    });
+      });
 
-    const result = (await response.json()) as { error?: string };
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone,
+          password: registerPassword,
+          role: registerRole,
+        }),
+      });
 
-    if (!response.ok) {
-      setFeedback("error", result.error ?? "注册失败");
+      const rawText = await response.text();
+      let result: {
+        ok?: boolean;
+        error?: string;
+        requestId?: string;
+        details?: unknown;
+        timestamp?: string;
+      } = {};
+
+      try {
+        result = rawText ? (JSON.parse(rawText) as { error?: string }) : {};
+      } catch (parseError) {
+        console.error("[register] failed to parse response JSON", {
+          parseError,
+          rawText,
+        });
+      }
+
+      console.log("[register] api response", {
+        status: response.status,
+        ok: response.ok,
+        rawText,
+        result,
+      });
+
+      if (!response.ok) {
+        console.error("[register] api returned error", {
+          status: response.status,
+          requestId: result.requestId,
+          result,
+        });
+        setFeedback("error", result.error ?? "注册失败");
+        setBusy(false);
+        return;
+      }
+
+      const email = getAuthEmailFromPhone(phone);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: registerPassword,
+      });
+
+      if (error) {
+        console.error("[register] signInWithPassword after register failed", {
+          message: error.message,
+          name: error.name,
+          status: error.status,
+        });
+        setFeedback("error", error.message);
+        setBusy(false);
+        return;
+      }
+
+      console.log("[register] completed successfully", {
+        phone: maskPhone(phone),
+        role: registerRole,
+      });
+
+      setFeedback("success", "注册成功，正在跳转...");
       setBusy(false);
-      return;
-    }
-
-    const email = getAuthEmailFromPhone(phone);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: registerPassword,
-    });
-
-    if (error) {
-      setFeedback("error", error.message);
+      router.replace(getRolePath(registerRole));
+      router.refresh();
+    } catch (error) {
+      console.error("[register] unexpected client error", error);
+      setFeedback("error", error instanceof Error ? error.message : "注册失败");
       setBusy(false);
-      return;
     }
-
-    setFeedback("success", "注册成功，正在跳转...");
-    setBusy(false);
-    router.replace(getRolePath(registerRole));
-    router.refresh();
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -149,7 +210,7 @@ export function AuthPanel() {
 
     setFeedback("success", "登录成功，正在跳转...");
     setBusy(false);
-    router.replace(getRolePath(profile?.role ?? (data.user.user_metadata?.role as string)));
+    router.replace(getLoginPath(profile?.role ?? (data.user.user_metadata?.role as string)));
     router.refresh();
   }
 

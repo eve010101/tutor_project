@@ -1,110 +1,117 @@
 import Link from "next/link";
-import { ArrowRight, FileText, PhoneCall, Send, ToggleLeft } from "lucide-react";
+import { ArrowRight, FileText, MessageSquare, PhoneCall, Send } from "lucide-react";
 
-import { ProfileBasicForm } from "@/components/profile-basic-form";
-import { TutorProfileForm } from "@/components/tutor-profile-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
 import { type MatchRecord, normalizeMatchStatus } from "@/lib/matchmaking";
+import { type ParentRequestRecord, normalizeParentRequestStatus } from "@/lib/parent-request";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ParentRequestManager } from "@/components/parent-request-manager";
+import { ProfileBasicForm } from "@/components/profile-basic-form";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type RelatedProfile = {
+const parentRequestSelect =
+  "id, subject, service_type, grade, city, area, budget_hourly, budget_min, budget_max, study_situation, preferred_time_slots, preferred_time, weekly_session_count, lesson_duration, extra_notes, notes, status, created_at" as const;
+const matchSelect =
+  "id, request_id, parent_id, tutor_id, status, parent_interested, tutor_interested, parent_interest_at, tutor_interest_at, contact_unlocked_at, rejected_by, reject_reason, rejected_at, created_at, updated_at" as const;
+
+type ProfileRow = {
   id: string;
   full_name: string | null;
   phone: string | null;
 };
 
-type RequestSummary = {
-  id: number;
-  subject: string;
-  grade: string;
-};
-
-function getStatusLabel(status?: string | null) {
-  const normalized = normalizeMatchStatus(status);
-  if (normalized === "matched") {
+function getStatusLabel(match: MatchRecord) {
+  const status = normalizeMatchStatus(match.status);
+  if (status === "matched") {
     return "已接受";
   }
-  if (normalized === "rejected") {
+  if (status === "rejected") {
     return "已拒绝";
   }
   return "待回应";
 }
 
-export default async function TutorProfilePage() {
-  const { user, profile } = await requireRole("tutor");
+export default async function ParentProfilePage() {
+  const { user, profile } = await requireRole("parent");
   const supabase = createSupabaseServerClient();
-  const tutorProfileSelect =
-    "gender, school, department, academic_stage, gaokao_origin, subjects, service_types, grade_ranges, grade, service_areas, service_area, hourly_rate, available_time_slots, available_days, weekly_capacity, tagline, intro, order_status, status, verification_image_path" as const;
 
-  const [{ data: tutorProfile }, { data: matchData }] = await Promise.all([
+  const [{ data: requestData }, { data: matchData }] = await Promise.all([
     supabase
-      .from("tutor_profiles")
-      .select(tutorProfileSelect)
+      .from("parent_requests")
+      .select(parentRequestSelect)
       .eq("user_id", user.id)
-      .maybeSingle(),
+      .order("created_at", { ascending: false }),
     supabase
       .from("match_records")
-      .select(
-        "id, request_id, parent_id, tutor_id, status, parent_interested, tutor_interested, parent_interest_at, tutor_interest_at, contact_unlocked_at, rejected_by, reject_reason, rejected_at, created_at, updated_at"
-      )
-      .eq("tutor_id", user.id)
+      .select(matchSelect)
+      .eq("parent_id", user.id)
       .order("updated_at", { ascending: false }),
   ]);
 
+  const requests = (requestData ?? []) as ParentRequestRecord[];
   const matches = (matchData ?? []) as MatchRecord[];
-  const parentIds = Array.from(new Set(matches.map((item) => item.parent_id)));
+  const tutorIds = Array.from(new Set(matches.map((item) => item.tutor_id)));
   const requestIds = Array.from(new Set(matches.map((item) => item.request_id)));
 
-  const [{ data: parentProfiles }, { data: requestRows }] = await Promise.all([
-    parentIds.length
-      ? supabase.from("profiles").select("id, full_name, phone").in("id", parentIds)
+  const [{ data: tutorProfiles }, { data: requestSummaries }] = await Promise.all([
+    tutorIds.length
+      ? supabase.from("profiles").select("id, full_name, phone").in("id", tutorIds)
       : Promise.resolve({ data: [] }),
     requestIds.length
       ? supabase.from("parent_requests").select("id, subject, grade").in("id", requestIds)
       : Promise.resolve({ data: [] }),
   ]);
 
-  const parentMap = new Map(((parentProfiles ?? []) as RelatedProfile[]).map((item) => [item.id, item]));
-  const requestMap = new Map(((requestRows ?? []) as RequestSummary[]).map((item) => [item.id, item]));
-  const receivedInterest = matches.filter((item) => item.parent_interested);
-  const sentInterest = matches.filter((item) => item.tutor_interested);
+  const tutorMap = new Map(((tutorProfiles ?? []) as ProfileRow[]).map((item) => [item.id, item]));
+  const requestMap = new Map(
+    ((requestSummaries ?? []) as Array<{ id: number; subject: string; grade: string }>).map((item) => [
+      item.id,
+      item,
+    ])
+  );
+
+  const openRequests = requests.filter(
+    (item) => normalizeParentRequestStatus(item.status) === "招聘中"
+  ).length;
+  const closedRequests = requests.length - openRequests;
+  const receivedInterest = matches.filter((item) => item.tutor_interested);
+  const sentInterest = matches.filter((item) => item.parent_interested);
   const unlockedContacts = matches.filter((item) => normalizeMatchStatus(item.status) === "matched");
-  const orderStatus = tutorProfile?.order_status ?? "接单中";
-  const reviewStatus = tutorProfile?.status ?? "pending";
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#fffef7_0%,#f8fafc_100%)] px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.14),_transparent_28%),linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <section className="rounded-[32px] border border-amber-100 bg-white/90 p-6 shadow-sm backdrop-blur sm:p-8">
-          <p className="text-sm font-medium tracking-wide text-amber-700">家教个人中心</p>
+        <section className="rounded-[32px] border border-sky-100 bg-white/90 p-6 shadow-sm backdrop-blur sm:p-8">
+          <p className="text-sm font-medium tracking-wide text-sky-700">家长个人中心</p>
           <div className="mt-4 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                管理资料、接单状态与匹配进展
+                管理资料、需求帖与匹配进展
               </h1>
               <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                这里集中处理个人资料、审核状态、接单状态，以及你与家长之间的感兴趣记录。
+                这里集中查看你发布的需求、收到与发出的感兴趣请求，以及已经解锁的联系方式记录。
               </p>
             </div>
-            <Button asChild className="w-full sm:w-auto" variant="outline">
-              <Link href="/tutor/requests">
-                查看需求列表
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button asChild variant="outline">
+                <Link href="/parent/request">
+                  发布新需求
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: "接单状态", value: orderStatus, sub: "可在家教资料表单中切换" },
-            { label: "审核状态", value: reviewStatus, sub: "展示当前审核进度" },
-            { label: "收到的感兴趣请求", value: `${receivedInterest.length}`, sub: "家长对你发起兴趣" },
+            { label: "我的需求帖", value: `${requests.length}`, sub: `招聘中 ${openRequests} / 已关闭 ${closedRequests}` },
+            { label: "收到的感兴趣请求", value: `${receivedInterest.length}`, sub: "家教对我的需求发起兴趣" },
+            { label: "我发出的感兴趣请求", value: `${sentInterest.length}`, sub: "我主动表达过合作意向" },
             { label: "已解锁联系方式", value: `${unlockedContacts.length}`, sub: "双方互选成功的记录" },
           ].map((item) => (
-            <Card className="border-amber-100 bg-white/90" key={item.label}>
+            <Card className="border-slate-200 bg-white/90" key={item.label}>
               <CardContent className="p-6">
                 <div className="text-sm text-slate-500">{item.label}</div>
                 <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{item.value}</div>
@@ -114,55 +121,34 @@ export default async function TutorProfilePage() {
           ))}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <ProfileBasicForm
-              description="可先更新基础资料，再继续维护完整的家教档案与接单状态。"
-              profile={profile}
-            />
-            <TutorProfileForm profile={profile} tutorProfile={tutorProfile} />
+            <ProfileBasicForm profile={profile} />
+            <ParentRequestManager requests={requests} />
           </div>
 
           <div className="space-y-6">
-            <Card className="border-amber-100 bg-amber-50/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ToggleLeft className="h-5 w-5 text-amber-700" />
-                  状态总览
-                </CardTitle>
-                <CardDescription>家教端重点关注接单状态和平台审核进度。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-slate-700">
-                <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
-                  接单状态：<span className="font-medium text-slate-950">{orderStatus}</span>
-                </div>
-                <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
-                  审核状态：<span className="font-medium text-slate-950">{reviewStatus}</span>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="border-slate-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-amber-700" />
+                  <MessageSquare className="h-5 w-5 text-sky-600" />
                   收到的感兴趣请求列表
                 </CardTitle>
-                <CardDescription>展示家长对你发起兴趣的记录，区分待回应、已接受、已拒绝。</CardDescription>
+                <CardDescription>按家教主动发起的兴趣记录展示，可见当前回应状态。</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {receivedInterest.length ? (
                   receivedInterest.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
+                    const tutor = tutorMap.get(match.tutor_id);
                     const request = requestMap.get(match.request_id);
 
                     return (
                       <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="font-medium text-slate-900">
-                            {parent?.full_name?.trim() || "未填写姓名"}
+                            {tutor?.full_name?.trim() || "未填写姓名"}
                           </div>
-                          <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
+                          <span className="text-sm text-slate-500">{getStatusLabel(match)}</span>
                         </div>
                         <div className="mt-1 text-sm text-slate-600">
                           {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
@@ -181,24 +167,24 @@ export default async function TutorProfilePage() {
             <Card className="border-slate-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <ArrowRight className="h-5 w-5 text-amber-700" />
+                  <Send className="h-5 w-5 text-sky-600" />
                   我发出的感兴趣请求列表
                 </CardTitle>
-                <CardDescription>展示你主动对家长需求发起兴趣的记录。</CardDescription>
+                <CardDescription>展示你主动表达兴趣的合作记录。</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {sentInterest.length ? (
                   sentInterest.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
+                    const tutor = tutorMap.get(match.tutor_id);
                     const request = requestMap.get(match.request_id);
 
                     return (
                       <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="font-medium text-slate-900">
-                            {parent?.full_name?.trim() || "未填写姓名"}
+                            {tutor?.full_name?.trim() || "未填写姓名"}
                           </div>
-                          <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
+                          <span className="text-sm text-slate-500">{getStatusLabel(match)}</span>
                         </div>
                         <div className="mt-1 text-sm text-slate-600">
                           {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
@@ -220,24 +206,24 @@ export default async function TutorProfilePage() {
                   <PhoneCall className="h-5 w-5 text-emerald-600" />
                   已解锁的联系方式记录
                 </CardTitle>
-                <CardDescription>仅展示已互选成功的家长联系方式。</CardDescription>
+                <CardDescription>仅展示已互选成功并解锁联系方式的记录。</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {unlockedContacts.length ? (
                   unlockedContacts.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
+                    const tutor = tutorMap.get(match.tutor_id);
                     const request = requestMap.get(match.request_id);
 
                     return (
                       <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3" key={match.id}>
                         <div className="font-medium text-slate-900">
-                          {parent?.full_name?.trim() || "未填写姓名"}
+                          {tutor?.full_name?.trim() || "未填写姓名"}
                         </div>
                         <div className="mt-1 text-sm text-slate-600">
                           {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
                         </div>
                         <div className="mt-2 text-sm text-slate-700">
-                          联系方式：{parent?.phone?.trim() || "暂无手机号"}
+                          联系方式：{tutor?.phone?.trim() || "暂无手机号"}
                         </div>
                       </div>
                     );
@@ -256,10 +242,10 @@ export default async function TutorProfilePage() {
                   <FileText className="h-5 w-5 text-slate-700" />
                   意见反馈入口
                 </CardTitle>
-                <CardDescription>当前先提供统一反馈通道，可后续接入正式反馈表单。</CardDescription>
+                <CardDescription>当前先提供统一反馈通道，可后续接入工单或表单系统。</CardDescription>
               </CardHeader>
               <CardContent className="text-sm leading-7 text-slate-600">
-                如需反馈审核、接单或匹配问题，请联系平台客服邮箱
+                如需反馈页面问题、匹配异常或产品建议，请联系平台客服邮箱
                 <span className="mx-1 font-medium text-slate-900">feedback@tutor-platform.local</span>。
               </CardContent>
             </Card>

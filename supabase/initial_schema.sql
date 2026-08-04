@@ -203,12 +203,14 @@ select
   tp.school,
   tp.department,
   tp.academic_stage,
+  tp.gaokao_origin,
   tp.subjects,
   tp.service_types,
   tp.grade_ranges,
   tp.service_areas,
   tp.hourly_rate,
   tp.available_time_slots,
+  tp.weekly_capacity,
   tp.tagline,
   tp.intro,
   tp.order_status,
@@ -227,10 +229,15 @@ set name = excluded.name,
     public = excluded.public;
 
 insert into storage.buckets (id, name, public)
-values ('tutor-verifications', 'tutor-verifications', false)
+values ('tutor-verifications', 'tutor-verifications', true)
 on conflict (id) do update
 set name = excluded.name,
     public = excluded.public;
+
+drop policy if exists "tutor_verifications_public_read" on storage.objects;
+create policy "tutor_verifications_public_read"
+on storage.objects for select
+using (bucket_id = 'tutor-verifications');
 
 drop policy if exists "profile_avatars_public_read" on storage.objects;
 create policy "profile_avatars_public_read"

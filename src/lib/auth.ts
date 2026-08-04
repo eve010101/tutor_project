@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/auth";
 
 export function getRolePath(role?: string | null) {
-  return role === "parent" ? "/parent/request" : "/tutor/profile";
+  return role === "parent" ? "/parent/profile" : "/tutor/profile";
 }
 
 export async function getCurrentUserProfile() {
@@ -27,6 +27,10 @@ export async function getCurrentUserProfile() {
 }
 
 export async function redirectAuthenticatedUser() {
+  if (process.env.NODE_ENV === "development") {
+    return;
+  }
+
   const { user, profile } = await getCurrentUserProfile();
 
   if (user && profile?.role) {
@@ -35,6 +39,22 @@ export async function redirectAuthenticatedUser() {
 }
 
 export async function requireRole(role: UserRole) {
+  if (process.env.NODE_ENV === "development") {
+    // Provide the fields protected pages use while bypassing role checks locally.
+    return {
+      user: { id: "development-user" },
+      profile: {
+        id: "development-user",
+        role,
+        phone: null,
+        full_name: "开发测试用户",
+        city: "北京",
+        avatar_url: null,
+        bio: null,
+      },
+    };
+  }
+
   const { user, profile } = await getCurrentUserProfile();
 
   if (!user || !profile?.role) {

@@ -23,8 +23,8 @@ export default async function ParentRequestPage() {
               </p>
             </div>
             <Button asChild variant="outline">
-              <Link href="/parent/requests">
-                查看我的需求
+              <Link href="/parent/profile">
+                返回个人中心
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

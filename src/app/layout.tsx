@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { BackButton } from "@/components/back-button";
+import { DevNavigation } from "@/components/dev-navigation";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -26,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={`${geistSans.variable} ${geistMono.variable} bg-white text-slate-950 antialiased`}>
+        <BackButton />
         {children}
+        <DevNavigation />
       </body>
     </html>
   );
