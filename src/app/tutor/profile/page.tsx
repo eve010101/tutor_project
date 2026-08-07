@@ -3,6 +3,7 @@ import { ArrowRight, FileText, PhoneCall, Send, ToggleLeft } from "lucide-react"
 
 import { ProfileBasicForm } from "@/components/profile-basic-form";
 import { TutorProfileForm } from "@/components/tutor-profile-form";
+import { MobileProfileSignOut } from "@/components/mobile-profile-sign-out";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth";
@@ -265,6 +266,7 @@ export default async function TutorProfilePage() {
             </Card>
           </div>
         </div>
+        <MobileProfileSignOut />
       </div>
     </main>
   );

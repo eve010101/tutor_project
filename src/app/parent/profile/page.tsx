@@ -7,6 +7,7 @@ import { type ParentRequestRecord, normalizeParentRequestStatus } from "@/lib/pa
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ParentRequestManager } from "@/components/parent-request-manager";
 import { ProfileBasicForm } from "@/components/profile-basic-form";
+import { MobileProfileSignOut } from "@/components/mobile-profile-sign-out";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -251,6 +252,7 @@ export default async function ParentProfilePage() {
             </Card>
           </div>
         </div>
+        <MobileProfileSignOut />
       </div>
     </main>
   );
