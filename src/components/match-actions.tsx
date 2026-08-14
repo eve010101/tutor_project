@@ -42,12 +42,12 @@ type MatchActionsProps = {
   counterpartProfile?: ContactProfile | null;
 };
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_PDF_SIZE = 5 * 1024 * 1024;
 
 function getDefaultRequestId(
   requestId: number | undefined,
   parentRequests: ParentSelectableRequest[] | undefined,
-  existingMatch?: MatchRecord | null
+  existingMatch?: MatchRecord | null,
 ) {
   if (existingMatch?.request_id) {
     return String(existingMatch.request_id);
@@ -64,13 +64,16 @@ function getDefaultRequestId(
   return "";
 }
 
-function validateImage(file: File) {
-  if (!file.type.startsWith("image/")) {
-    return "请上传图片文件。";
+function validatePdf(file: File) {
+  if (
+    file.type !== "application/pdf" ||
+    !file.name.toLowerCase().endsWith(".pdf")
+  ) {
+    return "仅支持上传 PDF 文件。";
   }
 
-  if (file.size > MAX_IMAGE_SIZE) {
-    return "图片大小需控制在 5MB 以内。";
+  if (file.size > MAX_PDF_SIZE) {
+    return "PDF 文件大小不能超过 5MB。";
   }
 
   return null;
@@ -100,9 +103,8 @@ export function MatchActions({
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState("5");
   const [verificationFile, setVerificationFile] = useState<File | null>(null);
-  const [verificationPreviewUrl, setVerificationPreviewUrl] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState(
-    getDefaultRequestId(requestId, parentRequests, existingMatch)
+    getDefaultRequestId(requestId, parentRequests, existingMatch),
   );
 
   const blockedMessage = viewerRole
@@ -116,34 +118,27 @@ export function MatchActions({
   const isTutor = viewerRole === "tutor";
   const isParent = viewerRole === "parent";
   const canReject = Boolean(match) && status !== MATCH_STATUS.REJECTED;
-  const canRequestVerification = isParent && Boolean(match) && status !== MATCH_STATUS.REJECTED;
+  const canRequestVerification =
+    isParent && Boolean(match) && status !== MATCH_STATUS.REJECTED;
   const canUploadVerification =
     isTutor &&
     Boolean(match?.parent_requested_verification_at) &&
     status !== MATCH_STATUS.REJECTED;
   const rejectionReasons = viewerRole ? getRejectionReasons(viewerRole) : [];
   const matched = status === MATCH_STATUS.MATCHED;
-  const selectedRequest = parentRequests?.find((item) => String(item.id) === selectedRequestId);
+  const selectedRequest = parentRequests?.find(
+    (item) => String(item.id) === selectedRequestId,
+  );
 
   useEffect(() => {
     setMatch(existingMatch ?? null);
   }, [existingMatch]);
 
   useEffect(() => {
-    setSelectedRequestId(getDefaultRequestId(requestId, parentRequests, existingMatch));
+    setSelectedRequestId(
+      getDefaultRequestId(requestId, parentRequests, existingMatch),
+    );
   }, [requestId, parentRequests, existingMatch]);
-
-  useEffect(() => {
-    if (!verificationFile) {
-      setVerificationPreviewUrl(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(verificationFile);
-    setVerificationPreviewUrl(objectUrl);
-
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [verificationFile]);
 
   async function upsertMatchRecord(payload: Partial<MatchRecord>) {
     const { data, error } = await supabase
@@ -215,10 +210,16 @@ export function MatchActions({
         request_id: nextRequestId,
         parent_id: isParent ? user.id : requestOwnerId,
         tutor_id: tutorId,
-        parent_interested: isParent ? true : match?.parent_interested ?? false,
-        tutor_interested: isTutor ? true : match?.tutor_interested ?? false,
-        parent_interest_at: isParent ? new Date().toISOString() : match?.parent_interest_at ?? null,
-        tutor_interest_at: isTutor ? new Date().toISOString() : match?.tutor_interest_at ?? null,
+        parent_interested: isParent
+          ? true
+          : (match?.parent_interested ?? false),
+        tutor_interested: isTutor ? true : (match?.tutor_interested ?? false),
+        parent_interest_at: isParent
+          ? new Date().toISOString()
+          : (match?.parent_interest_at ?? null),
+        tutor_interest_at: isTutor
+          ? new Date().toISOString()
+          : (match?.tutor_interest_at ?? null),
         rejected_by: null,
         reject_reason: null,
         rejected_at: null,
@@ -228,7 +229,7 @@ export function MatchActions({
       setMessage(
         normalizeMatchStatus(nextMatch.status) === MATCH_STATUS.MATCHED
           ? "双方已互相感兴趣，联系方式已解锁。"
-          : "已记录你的感兴趣，等待对方回应。"
+          : "已记录你的感兴趣，等待对方回应。",
       );
 
       if (normalizeMatchStatus(nextMatch.status) === MATCH_STATUS.MATCHED) {
@@ -237,7 +238,9 @@ export function MatchActions({
         router.refresh();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "操作失败，请稍后重试。");
+      setMessage(
+        error instanceof Error ? error.message : "操作失败，请稍后重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -269,11 +272,13 @@ export function MatchActions({
       setMessage(
         viewerRole === "tutor"
           ? "已拒绝该需求，请及时更新接单状态。"
-          : "已拒绝该家教，拒绝原因会同步给对方。"
+          : "已拒绝该家教，拒绝原因会同步给对方。",
       );
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "提交失败，请稍后重试。");
+      setMessage(
+        error instanceof Error ? error.message : "提交失败，请稍后重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -289,10 +294,14 @@ export function MatchActions({
       });
 
       setMatch(nextMatch);
-      setMessage("已发送“请求查看学信网截图”。截图仅供本次参考，平台已完成基础审核。");
+      setMessage(
+        "已发送“请求查看学信网 PDF 文件”。PDF 文件仅供本次参考，平台已完成基础审核。",
+      );
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "请求发送失败，请稍后重试。");
+      setMessage(
+        error instanceof Error ? error.message : "请求发送失败，请稍后重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -300,7 +309,7 @@ export function MatchActions({
 
   async function handleUploadVerification() {
     if (!verificationFile) {
-      setMessage("请先选择要上传的截图。");
+      setMessage("请先选择要上传的 PDF 文件。");
       return;
     }
 
@@ -308,7 +317,7 @@ export function MatchActions({
     setMessage("");
 
     try {
-      const validationMessage = validateImage(verificationFile);
+      const validationMessage = validatePdf(verificationFile);
       if (validationMessage) {
         throw new Error(validationMessage);
       }
@@ -340,10 +349,14 @@ export function MatchActions({
 
       setMatch(nextMatch);
       setVerificationFile(null);
-      setMessage("截图已上传。平台提示：该截图仅供家长本次参考，平台已完成基础审核。");
+      setMessage(
+        "PDF 文件已上传。平台提示：该 PDF 文件仅供家长本次参考，平台已完成基础审核。",
+      );
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "上传失败，请稍后重试。");
+      setMessage(
+        error instanceof Error ? error.message : "上传失败，请稍后重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -374,7 +387,7 @@ export function MatchActions({
           : {
               tutor_review_comment: reviewText.trim(),
               tutor_review_created_at: new Date().toISOString(),
-            }
+            },
       );
 
       setMatch(nextMatch);
@@ -382,7 +395,9 @@ export function MatchActions({
       setMessage("评价已提交。后续可继续接短信提醒与家长信誉评分。");
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "评价提交失败，请稍后重试。");
+      setMessage(
+        error instanceof Error ? error.message : "评价提交失败，请稍后重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -397,7 +412,9 @@ export function MatchActions({
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-slate-950">双向感兴趣</h2>
-          <p className="mt-1 text-sm text-slate-500">{getMatchStatusLabel(match)}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {getMatchStatusLabel(match)}
+          </p>
         </div>
         {matched ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -409,7 +426,9 @@ export function MatchActions({
 
       {isParent && parentRequests?.length ? (
         <label className="block space-y-2">
-          <span className="text-sm font-medium text-slate-700">选择发起感兴趣的需求帖</span>
+          <span className="text-sm font-medium text-slate-700">
+            选择发起感兴趣的需求帖
+          </span>
           <select
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             disabled={saving || matched}
@@ -424,7 +443,8 @@ export function MatchActions({
           </select>
           {selectedRequest ? (
             <p className="text-xs text-slate-500">
-              将以“{selectedRequest.subject} / {selectedRequest.grade} / {selectedRequest.area}”作为本次撮合需求。
+              将以“{selectedRequest.subject} / {selectedRequest.grade} /{" "}
+              {selectedRequest.area}”作为本次撮合需求。
             </p>
           ) : null}
         </label>
@@ -437,19 +457,29 @@ export function MatchActions({
           size="lg"
           type="button"
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Heart className="h-4 w-4" />}
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Heart className="h-4 w-4" />
+          )}
           我感兴趣
         </Button>
 
         {canRequestVerification ? (
-          <Button onClick={handleRequestVerification} type="button" variant="outline">
+          <Button
+            onClick={handleRequestVerification}
+            type="button"
+            variant="outline"
+          >
             <ShieldCheck className="h-4 w-4" />
-            请求查看学信网截图
+            请求查看学信网 PDF 文件
           </Button>
         ) : null}
       </div>
 
-      {blockedMessage ? <p className="text-sm text-amber-700">{blockedMessage}</p> : null}
+      {blockedMessage ? (
+        <p className="text-sm text-amber-700">{blockedMessage}</p>
+      ) : null}
 
       {match?.reject_reason ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -460,10 +490,11 @@ export function MatchActions({
       {matched ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
           <p className="font-medium">联系方式已解锁</p>
-          <p className="mt-1">联系人：{formatName(counterpartProfile?.fullName)}</p>
+          <p className="mt-1">
+            联系人：{formatName(counterpartProfile?.fullName)}
+          </p>
           <p>手机号：{counterpartProfile?.phone || "待补充"}</p>
           <p className="mt-2 text-xs text-emerald-700">
-            短信提醒需在短信服务接入后触发，当前已完成页面和数据流。
           </p>
         </div>
       ) : null}
@@ -499,7 +530,9 @@ export function MatchActions({
             提交拒绝
           </Button>
           {isTutor ? (
-            <p className="text-xs text-slate-500">系统会提醒家教及时更新接单状态。</p>
+            <p className="text-xs text-slate-500">
+              系统会提醒家教及时更新接单状态。
+            </p>
           ) : null}
         </div>
       ) : null}
@@ -508,31 +541,57 @@ export function MatchActions({
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
             <UploadCloud className="h-4 w-4 text-slate-500" />
-            响应学信网截图请求
+            响应学信网 PDF 文件请求
           </div>
           <p className="text-sm text-slate-500">
-            是否上传由你决定。平台提示：截图仅供家长本次参考，平台已完成基础审核。
+            是否上传由你决定。平台提示：PDF
+            文件仅供家长本次参考，平台已完成基础审核。
+          </p>
+          <p className="text-sm font-medium text-slate-700">
+            请上传学信网PDF文件（最大5MB）
           </p>
           <input
-            accept="image/*"
-            onChange={(event) => setVerificationFile(event.target.files?.[0] ?? null)}
+            accept="application/pdf,.pdf"
+            onChange={(event) => {
+              const nextFile = event.target.files?.[0] ?? null;
+
+              if (!nextFile) {
+                setVerificationFile(null);
+                return;
+              }
+
+              const validationMessage = validatePdf(nextFile);
+              if (validationMessage) {
+                setMessage(validationMessage);
+                setVerificationFile(null);
+                event.target.value = "";
+                return;
+              }
+
+              setMessage("");
+              setVerificationFile(nextFile);
+            }}
             type="file"
           />
-          {verificationPreviewUrl ? (
-            <img
-              alt="学信网截图预览"
-              className="max-h-64 rounded-xl border border-slate-200 object-contain"
-              src={verificationPreviewUrl}
-            />
+          {verificationFile ? (
+            <p className="break-all text-xs text-slate-500">
+              已选择：{verificationFile.name}
+            </p>
           ) : null}
-          <Button onClick={handleUploadVerification} type="button" variant="outline">
-            上传截图
+          <Button
+            onClick={handleUploadVerification}
+            type="button"
+            variant="outline"
+          >
+            上传 PDF 文件
           </Button>
         </div>
       ) : null}
 
       {match?.parent_requested_verification_at && !canUploadVerification ? (
-        <p className="text-sm text-slate-500">已发送学信网截图请求，等待家教决定是否上传。</p>
+        <p className="text-sm text-slate-500">
+          已发送学信网 PDF 文件请求，等待家教决定是否上传。
+        </p>
       ) : null}
 
       {matched ? (
@@ -567,7 +626,6 @@ export function MatchActions({
             提交评价
           </Button>
           <p className="text-xs text-slate-500">
-            短信提醒可在后续接入定时任务后补齐。家长信誉评分可在此数据模型上继续扩展。
           </p>
         </div>
       ) : null}

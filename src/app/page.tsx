@@ -15,7 +15,7 @@ export default async function HomePage() {
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
-              北京家教信息撮合平台
+              燕启家教
             </div>
             <div className="space-y-4">
               <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">

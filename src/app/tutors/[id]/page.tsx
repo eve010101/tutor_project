@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TutorDetail } from "@/components/tutor-detail";
 import { getCurrentUserProfile } from "@/lib/auth";
 import type { MatchRecord, ParentSelectableRequest } from "@/lib/matchmaking";
+import { getUnlockedCounterpartContact } from "@/lib/match-contact";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import { fetchSupabaseWithFallback } from "@/lib/supabase/query-with-fallback";
@@ -109,21 +110,11 @@ export default async function TutorDetailPage({
 
       existingMatch = (matchData as MatchRecord | null) ?? null;
 
-      if (existingMatch?.status === "matched") {
-        const counterpartResult = await supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .eq("id", id)
-          .maybeSingle();
-        const { data: profileData } = logSupabaseQuery("matched tutor contact", counterpartResult);
-
-        counterpartProfile = profileData
-          ? {
-              fullName: profileData.full_name,
-              phone: profileData.phone,
-            }
-          : null;
-      }
+      counterpartProfile = await getUnlockedCounterpartContact({
+        match: existingMatch,
+        viewerId: user.id,
+        supabase,
+      });
     }
   }
 

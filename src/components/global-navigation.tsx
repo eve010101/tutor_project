@@ -61,7 +61,7 @@ export function GlobalNavigation({ role }: GlobalNavigationProps) {
             className="text-base font-semibold text-slate-950 transition-colors hover:text-sky-700"
             href={homePath}
           >
-            北京家教信息撮合平台
+            燕启家教
           </Link>
           <nav className="flex items-center gap-1" aria-label="全局导航">
             <Link className={linkClass(homeIsActive)} href={homePath}>

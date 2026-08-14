@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ParentRequestDetail } from "@/components/parent-request-detail";
 import { getCurrentUserProfile } from "@/lib/auth";
 import type { MatchRecord } from "@/lib/matchmaking";
+import { getUnlockedCounterpartContact } from "@/lib/match-contact";
 import { normalizeParentRequest, type ParentRequestRecord } from "@/lib/parent-request";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -83,21 +84,11 @@ export default async function ParentRequestDetailPage({ params }: { params: Prom
 
     existingMatch = (matchData as MatchRecord | null) ?? null;
 
-    if (existingMatch?.status === "matched") {
-      const parentProfileResult = await supabase
-        .from("profiles")
-        .select("full_name, phone")
-        .eq("id", requestRow.user_id)
-        .maybeSingle();
-      const { data: parentProfile } = logSupabaseQuery("matched parent contact", parentProfileResult);
-
-      counterpartProfile = parentProfile
-        ? {
-            fullName: parentProfile.full_name,
-            phone: parentProfile.phone,
-          }
-        : null;
-    }
+    counterpartProfile = await getUnlockedCounterpartContact({
+      match: existingMatch,
+      viewerId: user.id,
+      supabase,
+    });
   }
 
   return (

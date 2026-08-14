@@ -12,7 +12,8 @@ import {
 const features = [
   {
     title: "真实可信",
-    description: "每位家教均经学籍认证，学信网截图平台审核，确保你看到的都是真实在读大学生。",
+    description:
+      "每位家教均经学籍认证，学信网 PDF 文件经平台审核，确保你看到的都是真实在读大学生。",
     icon: StudentVerificationIcon,
   },
   {
@@ -22,7 +23,8 @@ const features = [
   },
   {
     title: "双向平等选择",
-    description: "家教和家长都有主动权，互相表达意向，匹配成功才交换联系方式，安全有保障。",
+    description:
+      "家教和家长都有主动权，互相表达意向，匹配成功才交换联系方式，安全有保障。",
     icon: ShieldCheck,
   },
 ];
@@ -55,8 +57,12 @@ export function ValuePropositionCard({ className }: ValuePropositionCardProps) {
                 <Icon />
               </div>
               <div>
-                <div className="font-medium text-slate-950">{feature.title}</div>
-                <div className="text-sm text-slate-500">{feature.description}</div>
+                <div className="font-medium text-slate-950">
+                  {feature.title}
+                </div>
+                <div className="text-sm text-slate-500">
+                  {feature.description}
+                </div>
               </div>
             </div>
           );

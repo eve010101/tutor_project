@@ -12,6 +12,12 @@ import {
   X,
 } from "lucide-react";
 
+import {
+  BEIJING_DISTRICT_OPTIONS,
+  TUTOR_GRADE_RANGE_OPTIONS,
+  TUTOR_SERVICE_TYPE_OPTIONS,
+  TUTOR_SUBJECT_OPTIONS,
+} from "@/lib/tutor-profile-options";
 import { cn } from "@/lib/utils";
 
 export type TutorCard = {
@@ -60,10 +66,6 @@ const priceOptions = [
   { label: "500元以上", value: "501-999999" },
 ];
 
-function uniqueValues(tutors: TutorCard[], key: "subjects" | "grade_ranges" | "service_areas" | "service_types") {
-  return Array.from(new Set(tutors.flatMap((tutor) => tutor[key] ?? [])));
-}
-
 function hasValue(values: string[] | null | undefined, value: string) {
   return !value || Boolean(values?.includes(value));
 }
@@ -97,7 +99,7 @@ function tutorMatches(tutor: TutorCard, filters: Filters, keyword: string) {
   );
 }
 
-function SelectFilter({ label, value, options, onChange }: { label: string; value: string; options: string[] | { label: string; value: string }[]; onChange: (value: string) => void }) {
+function SelectFilter({ label, value, options, onChange }: { label: string; value: string; options: readonly (string | { label: string; value: string })[]; onChange: (value: string) => void }) {
   return (
     <label className="block min-w-[130px] flex-1">
       <span className="mb-1.5 block text-xs font-medium text-slate-500">{label}</span>
@@ -165,7 +167,7 @@ export function TutorDirectory({ tutors, loadError }: { tutors: TutorCard[]; loa
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="relative"><Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={'搜索关键词，如“北大数学”'} className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-10 text-sm outline-none placeholder:text-slate-400 focus:border-sky-400 focus:bg-white focus:ring-2 focus:ring-sky-100" />{keyword ? <button onClick={() => setKeyword("")} aria-label="清空搜索" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"><X className="h-5 w-5" /></button> : null}</div>
           <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-700"><SlidersHorizontal className="h-4 w-4" />筛选条件</div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><SelectFilter label="科目" value={filters.subject} options={uniqueValues(tutors, "subjects")} onChange={updateFilter("subject")} /><SelectFilter label="年级段" value={filters.grade} options={uniqueValues(tutors, "grade_ranges")} onChange={updateFilter("grade")} /><SelectFilter label="性别" value={filters.gender} options={["男", "女"]} onChange={updateFilter("gender")} /><SelectFilter label="价格区间" value={filters.price} options={priceOptions} onChange={updateFilter("price")} /><SelectFilter label="所在区域" value={filters.area} options={uniqueValues(tutors, "service_areas")} onChange={updateFilter("area")} /><SelectFilter label="服务类型" value={filters.service} options={uniqueValues(tutors, "service_types")} onChange={updateFilter("service")} /></div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><SelectFilter label="科目" value={filters.subject} options={TUTOR_SUBJECT_OPTIONS} onChange={updateFilter("subject")} /><SelectFilter label="年级段" value={filters.grade} options={TUTOR_GRADE_RANGE_OPTIONS} onChange={updateFilter("grade")} /><SelectFilter label="性别" value={filters.gender} options={["男", "女"]} onChange={updateFilter("gender")} /><SelectFilter label="价格区间" value={filters.price} options={priceOptions} onChange={updateFilter("price")} /><SelectFilter label="所在区域" value={filters.area} options={BEIJING_DISTRICT_OPTIONS} onChange={updateFilter("area")} /><SelectFilter label="服务类型" value={filters.service} options={TUTOR_SERVICE_TYPE_OPTIONS} onChange={updateFilter("service")} /></div>
           {(activeFilterCount || keyword) ? <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">已找到 <b className="text-slate-900">{results.length}</b> 位老师</span><button onClick={() => { setFilters(initialFilters); setKeyword(""); }} className="text-sky-700 hover:text-sky-900">清空筛选</button></div> : null}
         </section>
         {loadError ? <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-8"><h2 className="font-semibold text-red-900">家教列表读取失败</h2><p className="mt-2 text-sm leading-6 text-red-700">{loadError}</p><p className="mt-2 text-xs text-red-600">请确认登录状态和 Supabase RLS 策略后刷新页面。</p></section> : results.length ? <section className="mt-6 grid gap-4 lg:grid-cols-2">{results.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} />)}</section> : <section className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><Search className="h-6 w-6" /></div><h2 className="mt-4 text-lg font-semibold text-slate-900">暂时没有符合条件的家教，试试放宽筛选条件</h2><button onClick={() => { setFilters(initialFilters); setKeyword(""); }} className="mt-3 text-sm font-medium text-sky-700 hover:text-sky-900">查看全部家教</button>{suggestions.length ? <div className="mx-auto mt-8 max-w-4xl border-t border-slate-100 pt-7 text-left"><h3 className="text-base font-semibold text-slate-900">相近的老师推荐</h3><div className="mt-4 grid gap-4 md:grid-cols-3">{suggestions.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} compact />)}</div></div> : null}</section>}

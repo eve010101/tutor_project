@@ -44,7 +44,7 @@ type ProfileRow = {
 type ReviewItem = TutorProfileReviewRow & {
   fullName: string;
   phone: string;
-  verificationImageUrl: string | null;
+  verificationPdfUrl: string | null;
 };
 
 const tutorReviewSelect =
@@ -86,7 +86,9 @@ function extractStoragePath(bucket: string, pathOrUrl?: string | null) {
       const index = parsed.pathname.indexOf(pattern);
 
       if (index >= 0) {
-        return decodeURIComponent(parsed.pathname.slice(index + pattern.length));
+        return decodeURIComponent(
+          parsed.pathname.slice(index + pattern.length),
+        );
       }
     }
   } catch {
@@ -96,10 +98,10 @@ function extractStoragePath(bucket: string, pathOrUrl?: string | null) {
   return null;
 }
 
-function getPublicImageUrl(
+function getPublicFileUrl(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   bucket: string,
-  pathOrUrl?: string | null
+  pathOrUrl?: string | null,
 ) {
   const storagePath = extractStoragePath(bucket, pathOrUrl);
 
@@ -149,7 +151,10 @@ export default async function AdminReviewsPage() {
     .select(tutorReviewSelect)
     .order("updated_at", { ascending: false });
 
-  logSupabaseQuery("admin tutor review list", { data: reviewRows, error: reviewError });
+  logSupabaseQuery("admin tutor review list", {
+    data: reviewRows,
+    error: reviewError,
+  });
 
   if (reviewError) {
     return (
@@ -197,7 +202,7 @@ export default async function AdminReviewsPage() {
   }
 
   const profileMap = new Map(
-    ((profileRows ?? []) as ProfileRow[]).map((item) => [item.id, item])
+    ((profileRows ?? []) as ProfileRow[]).map((item) => [item.id, item]),
   );
 
   const items: ReviewItem[] = reviews
@@ -208,10 +213,10 @@ export default async function AdminReviewsPage() {
         ...review,
         fullName: profile?.full_name?.trim() || "未填写姓名",
         phone: profile?.phone?.trim() || "未绑定手机号",
-        verificationImageUrl: getPublicImageUrl(
+        verificationPdfUrl: getPublicFileUrl(
           supabase,
           "tutor-verifications",
-          review.verification_image_path
+          review.verification_image_path,
         ),
       };
     })
@@ -240,10 +245,10 @@ export default async function AdminReviewsPage() {
     });
 
   const pendingCount = items.filter(
-    (item) => normalizeTutorReviewStatus(item.status) === "pending"
+    (item) => normalizeTutorReviewStatus(item.status) === "pending",
   ).length;
   const approvedCount = items.filter(
-    (item) => normalizeTutorReviewStatus(item.status) === "approved"
+    (item) => normalizeTutorReviewStatus(item.status) === "approved",
   ).length;
   const rejectedCount = items.length - pendingCount - approvedCount;
 
@@ -259,7 +264,8 @@ export default async function AdminReviewsPage() {
               家教资料审核列表
             </h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
-              学信网截图使用 Supabase Storage 的公开 URL 渲染，不显示文件路径字符串。
+              学信网 PDF
+              文件支持在线预览和下载，不显示数据库中的文件路径字符串。
             </p>
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
@@ -281,25 +287,30 @@ export default async function AdminReviewsPage() {
               const reviewMeta = getTutorReviewStatusMeta(item.status);
 
               return (
-                <Card className="overflow-hidden border-slate-200" key={item.user_id}>
+                <Card
+                  className="overflow-hidden border-slate-200"
+                  key={item.user_id}
+                >
                   <CardHeader className="gap-4 border-b border-slate-100 bg-white/90 pb-5">
                     <div className="min-w-0 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <CardTitle className="text-xl">{item.fullName}</CardTitle>
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${reviewMeta.badgeClassName}`}
-                          >
-                            {reviewMeta.label}
-                          </span>
-                        </div>
-                        <CardDescription className="text-sm leading-6">
-                          {item.phone}
-                        </CardDescription>
-                        <div className="text-sm leading-6 text-slate-600">
-                          {[item.school, item.department, item.academic_stage]
-                            .filter(Boolean)
-                            .join(" · ") || "学校信息待补充"}
-                        </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="text-xl">
+                          {item.fullName}
+                        </CardTitle>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${reviewMeta.badgeClassName}`}
+                        >
+                          {reviewMeta.label}
+                        </span>
+                      </div>
+                      <CardDescription className="text-sm leading-6">
+                        {item.phone}
+                      </CardDescription>
+                      <div className="text-sm leading-6 text-slate-600">
+                        {[item.school, item.department, item.academic_stage]
+                          .filter(Boolean)
+                          .join(" · ") || "学校信息待补充"}
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -343,22 +354,34 @@ export default async function AdminReviewsPage() {
                     </div>
 
                     <div className="space-y-3">
-                        <div className="text-sm font-medium text-slate-700">
-                          学信网截图
-                        </div>
-                        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
-                          {item.verificationImageUrl ? (
-                            <img
-                              alt={`${item.fullName}学信网截图`}
-                              className="h-64 w-full object-contain bg-white"
-                              src={item.verificationImageUrl}
+                      <div className="text-sm font-medium text-slate-700">
+                        学信网 PDF 文件
+                      </div>
+                      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+                        {item.verificationPdfUrl ? (
+                          <div className="bg-white">
+                            <iframe
+                              className="h-80 w-full"
+                              src={item.verificationPdfUrl}
+                              title={`${item.fullName}学信网 PDF 文件预览`}
                             />
-                          ) : (
-                            <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-                              暂无学信网截图
+                            <div className="border-t border-slate-200 p-3">
+                              <a
+                                className="text-sm font-medium text-sky-700 hover:text-sky-800 hover:underline"
+                                href={item.verificationPdfUrl}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                在新窗口打开或下载 PDF 文件
+                              </a>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="flex h-64 items-center justify-center text-sm text-slate-400">
+                            暂无学信网 PDF 文件
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {item.tagline || item.intro ? (

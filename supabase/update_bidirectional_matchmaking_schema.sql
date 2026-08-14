@@ -107,11 +107,19 @@ with check (auth.uid() = parent_id or auth.uid() = tutor_id);
 grant select, insert, update on public.match_records to authenticated;
 grant usage, select on sequence public.match_records_id_seq to authenticated;
 
-insert into storage.buckets (id, name, public)
-values ('match-verifications', 'match-verifications', false)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'match-verifications',
+  'match-verifications',
+  false,
+  5242880,
+  array['application/pdf']::text[]
+)
 on conflict (id) do update
 set name = excluded.name,
-    public = excluded.public;
+    public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "match_verifications_select_related" on storage.objects;
 create policy "match_verifications_select_related"

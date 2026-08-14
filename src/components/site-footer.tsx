@@ -33,12 +33,12 @@ export function SiteFooter() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr] lg:px-8">
           <div className="space-y-3">
             <p className="text-base font-semibold text-white">
-              北京家教信息撮合平台
+              燕启家教
             </p>
             <p className="text-sm leading-6 text-slate-300">
               真实可信的家教资源，告别高价中介
             </p>
-            <p className="text-sm text-slate-400">北大某院系在读学生创立</p>
+            <p className="text-sm text-slate-400">北大在读学生创立</p>
           </div>
 
           <div className="grid gap-3 text-sm sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
@@ -108,7 +108,8 @@ export function SiteFooter() {
               </button>
             </div>
             <p className="mt-5 text-sm leading-7 text-slate-600">
-              平台仅提供信息撮合服务，建议第一次见面选择公共场所，平台不对线下行为负责，所有家教均经过学信网截图审核。
+              平台仅提供信息撮合服务，建议第一次见面选择公共场所，平台不对线下行为负责，所有家教均经过学信网
+              PDF 文件审核。
             </p>
           </section>
         </div>
