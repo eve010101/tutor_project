@@ -37,7 +37,7 @@ interface ProfileBasicFormProps {
 export function ProfileBasicForm({
   profile,
   title = "修改个人资料",
-  description = "更新姓名、所在城市和自我介绍，这些基础信息会用于后续匹配和展示。",
+  description = "更新家长姓名、所在城市和孩子情况介绍，这些基础信息会用于后续匹配和展示。",
 }: ProfileBasicFormProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [saving, setSaving] = useState(false);
@@ -68,7 +68,7 @@ export function ProfileBasicForm({
     const bio = form.bio.trim();
 
     if (!fullName) {
-      setMessage({ type: "error", text: "请填写姓名。" });
+      setMessage({ type: "error", text: "请填写家长姓名。" });
       setSaving(false);
       return;
     }
@@ -108,13 +108,13 @@ export function ProfileBasicForm({
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="profile-full-name">姓名</Label>
+              <Label htmlFor="profile-full-name">家长姓名</Label>
               <div className="relative">
                 <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   className="pl-9"
                   id="profile-full-name"
-                  placeholder="请输入真实姓名或称呼"
+                  placeholder="请输入真实姓名，仅用于平台留存，不会对外展示。"
                   value={form.fullName}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, fullName: event.target.value }))
@@ -141,10 +141,10 @@ export function ProfileBasicForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-bio">个人简介</Label>
+            <Label htmlFor="profile-bio">学生情况介绍</Label>
             <Textarea
               id="profile-bio"
-              placeholder="补充你的背景、偏好或补充说明。"
+              placeholder="补充孩子的成绩情况、想通过补习提升的痛点、对老师的需求。详细的学生情况介绍更利于匹配哦！"
               rows={5}
               value={form.bio}
               onChange={(event) =>

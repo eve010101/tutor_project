@@ -4,6 +4,7 @@ alter table public.parent_requests
   add column if not exists study_situation text,
   add column if not exists preferred_time_slots text[] not null default '{}'::text[],
   add column if not exists preferred_time text,
+  add column if not exists preferred_time_note text,
   add column if not exists weekly_session_count integer,
   add column if not exists lesson_duration text,
   add column if not exists extra_notes text;
@@ -76,3 +77,9 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
 grant select, insert, update on public.parent_requests to authenticated;
+
+drop policy if exists "parent_requests_select_authenticated" on public.parent_requests;
+create policy "parent_requests_select_authenticated"
+on public.parent_requests for select
+to authenticated
+using (auth.uid() is not null);

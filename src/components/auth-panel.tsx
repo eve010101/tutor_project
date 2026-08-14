@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
-  CheckCircle2,
   KeyRound,
-  ShieldCheck,
   Smartphone,
 } from "lucide-react";
 
 import { getAuthEmailFromPhone, isSupportedPhone, normalizePhone } from "@/lib/auth-identity";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/auth";
+import { ValuePropositionCard } from "@/components/value-proposition-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -202,11 +202,21 @@ export function AuthPanel() {
       return;
     }
 
-    const { data: profile } = await supabase
+    const profileResult = await supabase
       .from("profiles")
       .select("role")
       .eq("id", data.user.id)
       .maybeSingle();
+    const { data: profile, error: profileError } = logSupabaseQuery(
+      "login role profile",
+      profileResult
+    );
+
+    if (profileError) {
+      setFeedback("error", `登录成功，但读取用户角色失败：${profileError.message}`);
+      setBusy(false);
+      return;
+    }
 
     setFeedback("success", "登录成功，正在跳转...");
     setBusy(false);
@@ -278,39 +288,7 @@ export function AuthPanel() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="hidden rounded-3xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-8 shadow-sm lg:block">
-        <div className="flex h-full flex-col justify-between gap-8">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              北京家教撮合平台
-            </div>
-            <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-slate-950">
-              手机号输入，内部走邮箱密码认证
-            </h1>
-            <p className="max-w-lg text-base leading-7 text-slate-600">
-              用户只看到手机号和密码。系统会把手机号映射成内部邮箱，再交给
-              Supabase Email Auth 处理密码和会话。
-            </p>
-          </div>
-
-          <div className="grid gap-3 text-sm text-slate-600">
-            {[
-              "前台始终输入手机号，不暴露内部邮箱",
-              "profiles 表保存真实手机号和角色",
-              "当前版本可直接做注册和登录测试",
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3"
-              >
-                <CheckCircle2 className="h-4 w-4 text-slate-950" />
-                {item}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <ValuePropositionCard className="hidden lg:block" />
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="space-y-2">
@@ -320,7 +298,6 @@ export function AuthPanel() {
           </div>
           <CardTitle className="text-2xl">注册 / 登录</CardTitle>
           <CardDescription>
-            界面输入的是手机号，底层认证走 Supabase 的邮箱密码体系。
           </CardDescription>
         </CardHeader>
 
@@ -479,7 +456,7 @@ export function AuthPanel() {
           ) : null}
 
           <p className="text-xs leading-6 text-slate-500">
-            只支持中国大陆手机号。输入 11 位手机号后，系统会自动规范化为 `+86` 格式并生成内部认证邮箱。
+            只支持中国大陆手机号。
           </p>
         </CardContent>
       </Card>

@@ -75,19 +75,8 @@ export function TutorDetail({
       <div className="mx-auto max-w-3xl">
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <header className="border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-5 sm:p-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-sky-200 to-indigo-200 text-2xl font-semibold text-sky-800 shadow-sm">
-                {tutor.avatar_url ? (
-                  <img
-                    alt={`${tutor.display_name}头像`}
-                    className="h-full w-full object-cover"
-                    src={tutor.avatar_url}
-                  />
-                ) : (
-                  tutor.display_name.slice(0, 1)
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
+            <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-bold tracking-tight text-slate-950">
                     {tutor.display_name}
@@ -151,6 +140,11 @@ export function TutorDetail({
                   <CalendarDays className="mt-1 h-4 w-4 shrink-0 text-sky-700" />
                   <Tags values={tutor.available_time_slots} />
                 </span>
+              </DetailRow>
+              <DetailRow label="时间补充说明">
+                <p className="whitespace-pre-wrap">
+                  {tutor.available_time_note || "暂未填写"}
+                </p>
               </DetailRow>
               <DetailRow label="每周可接课次数">
                 <span className="inline-flex items-center gap-2">

@@ -19,7 +19,7 @@ export default async function ParentRequestPage() {
                 发布家教需求
               </h1>
               <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                把科目、年级、预算、上课时间和目标分数写清楚，家教更容易快速判断是否匹配。
+                对科目、年级、预算、上课时间和目标分数的填写越清晰，越利于家教快速判断是否匹配哦！
               </p>
             </div>
             <Button asChild variant="outline">

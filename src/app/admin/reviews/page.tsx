@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import {
   getTutorReviewStatusMeta,
   normalizeTutorReviewStatus,
@@ -38,20 +39,18 @@ type ProfileRow = {
   id: string;
   full_name?: string | null;
   phone?: string | null;
-  avatar_url?: string | null;
 };
 
 type ReviewItem = TutorProfileReviewRow & {
   fullName: string;
   phone: string;
-  avatarImageUrl: string | null;
   verificationImageUrl: string | null;
 };
 
 const tutorReviewSelect =
   "user_id, school, department, academic_stage, gaokao_origin, subjects, service_types, grade_ranges, service_areas, hourly_rate, weekly_capacity, tagline, intro, order_status, status, verification_image_path, updated_at, created_at" as const;
 
-const profileSelect = "id, full_name, phone, avatar_url" as const;
+const profileSelect = "id, full_name, phone" as const;
 
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
   dateStyle: "medium",
@@ -150,6 +149,8 @@ export default async function AdminReviewsPage() {
     .select(tutorReviewSelect)
     .order("updated_at", { ascending: false });
 
+  logSupabaseQuery("admin tutor review list", { data: reviewRows, error: reviewError });
+
   if (reviewError) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -172,6 +173,11 @@ export default async function AdminReviewsPage() {
   const { data: profileRows, error: profileError } = userIds.length
     ? await supabase.from("profiles").select(profileSelect).in("id", userIds)
     : { data: [], error: null };
+
+  logSupabaseQuery("admin tutor profile identities", {
+    data: profileRows,
+    error: profileError,
+  });
 
   if (profileError) {
     return (
@@ -202,11 +208,6 @@ export default async function AdminReviewsPage() {
         ...review,
         fullName: profile?.full_name?.trim() || "未填写姓名",
         phone: profile?.phone?.trim() || "未绑定手机号",
-        avatarImageUrl: getPublicImageUrl(
-          supabase,
-          "profile-avatars",
-          profile?.avatar_url
-        ),
         verificationImageUrl: getPublicImageUrl(
           supabase,
           "tutor-verifications",
@@ -258,7 +259,7 @@ export default async function AdminReviewsPage() {
               家教资料审核列表
             </h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
-              头像和学信网截图均使用 Supabase Storage 的公开 URL 渲染，不再显示文件路径字符串。
+              学信网截图使用 Supabase Storage 的公开 URL 渲染，不显示文件路径字符串。
             </p>
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
@@ -282,22 +283,7 @@ export default async function AdminReviewsPage() {
               return (
                 <Card className="overflow-hidden border-slate-200" key={item.user_id}>
                   <CardHeader className="gap-4 border-b border-slate-100 bg-white/90 pb-5">
-                    <div className="flex items-start gap-4">
-                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
-                        {item.avatarImageUrl ? (
-                          <img
-                            alt={`${item.fullName}头像`}
-                            className="h-full w-full object-cover"
-                            src={item.avatarImageUrl}
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-slate-400">
-                            {item.fullName.slice(0, 1)}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1 space-y-2">
+                    <div className="min-w-0 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <CardTitle className="text-xl">{item.fullName}</CardTitle>
                           <span
@@ -314,7 +300,6 @@ export default async function AdminReviewsPage() {
                             .filter(Boolean)
                             .join(" · ") || "学校信息待补充"}
                         </div>
-                      </div>
                     </div>
                   </CardHeader>
 
@@ -357,25 +342,7 @@ export default async function AdminReviewsPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="space-y-3">
-                        <div className="text-sm font-medium text-slate-700">头像预览</div>
-                        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
-                          {item.avatarImageUrl ? (
-                            <img
-                              alt={`${item.fullName}头像`}
-                              className="h-64 w-full object-cover"
-                              src={item.avatarImageUrl}
-                            />
-                          ) : (
-                            <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-                              暂无头像
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
+                    <div className="space-y-3">
                         <div className="text-sm font-medium text-slate-700">
                           学信网截图
                         </div>
@@ -392,7 +359,6 @@ export default async function AdminReviewsPage() {
                             </div>
                           )}
                         </div>
-                      </div>
                     </div>
 
                     {item.tagline || item.intro ? (

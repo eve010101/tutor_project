@@ -1,37 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import { redirectAuthenticatedUser } from "@/lib/auth";
+import { ValuePropositionCard } from "@/components/value-proposition-card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
-const features = [
-  {
-    title: "手机号作为登录名",
-    description: "家长和家教都直接输入手机号，不需要记邮箱。",
-    icon: SmartphoneFeatureIcon,
-  },
-  {
-    title: "角色注册后自动分流",
-    description: "家教进入资料页，家长进入发布需求页。",
-    icon: Users,
-  },
-  {
-    title: "密码仍由 Supabase 托管",
-    description: "底层走 Email Auth，前台保持手机号体验。",
-    icon: ShieldCheck,
-  },
-];
-
-function SmartphoneFeatureIcon() {
-  return <BookOpen className="h-4 w-4" />;
-}
 
 export default async function HomePage() {
   await redirectAuthenticatedUser();
@@ -50,7 +22,6 @@ export default async function HomePage() {
                 连接大学生家教和有需求的家长
               </h1>
               <p className="max-w-xl text-base leading-7 text-slate-600">
-                界面输入手机号和密码，内部映射成 Supabase 邮箱认证。这样你可以直接测试手机号注册和登录流程。
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -66,32 +37,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle>当前实现</CardTitle>
-              <CardDescription>先完成可测试的手机号注册和登录。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {features.map((feature) => {
-                const Icon = feature.icon;
-
-                return (
-                  <div
-                    key={feature.title}
-                    className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="mt-0.5 rounded-xl bg-slate-100 p-2 text-slate-950">
-                      <Icon />
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-950">{feature.title}</div>
-                      <div className="text-sm text-slate-500">{feature.description}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
+          <ValuePropositionCard />
         </section>
       </div>
     </main>

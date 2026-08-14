@@ -1,0 +1,18 @@
+# Query: 招聘中
+# ContextLines: 1
+
+3 results - 2 files
+
+tutor-platform\src\app\parent\profile\page.tsx:
+  108            {[
+  109:             { label: "我的需求帖", value: `${requests.length}`, sub: `招募中 ${openRequests} / 已关闭 ${closedRequests}` },
+  110              { label: "收到的感兴趣请求", value: `${receivedInterest.length}`, sub: "家教对我的需求发起兴趣" },
+
+tutor-platform\src\components\parent-request-manager.tsx:
+   28  
+   29:   async function updateStatus(requestId: number, status: "招募中" | "已找到") {
+   30      setBusyId(requestId);
+
+  129                        variant="outline"
+  130:                       onClick={() => updateStatus(record.id, "招募中")}
+  131                      >

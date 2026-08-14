@@ -34,6 +34,7 @@ create table if not exists public.tutor_profiles (
   service_area text,
   hourly_rate integer,
   available_time_slots text[] not null default '{}'::text[],
+  available_time_note text,
   available_days text,
   weekly_capacity integer,
   tagline text,
@@ -59,6 +60,7 @@ create table if not exists public.parent_requests (
   study_situation text,
   preferred_time_slots text[] not null default '{}'::text[],
   preferred_time text,
+  preferred_time_note text,
   weekly_session_count integer,
   lesson_duration text,
   extra_notes text,
@@ -145,6 +147,12 @@ create policy "tutor_profiles_select_own"
 on public.tutor_profiles for select
 using (auth.uid() = user_id);
 
+drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
+create policy "tutor_profiles_select_authenticated"
+on public.tutor_profiles for select
+to authenticated
+using (auth.uid() is not null);
+
 drop policy if exists "tutor_profiles_insert_own" on public.tutor_profiles;
 create policy "tutor_profiles_insert_own"
 on public.tutor_profiles for insert
@@ -173,6 +181,12 @@ using (
       and profiles.role = 'tutor'::public.user_role
   )
 );
+
+drop policy if exists "parent_requests_select_authenticated" on public.parent_requests;
+create policy "parent_requests_select_authenticated"
+on public.parent_requests for select
+to authenticated
+using (auth.uid() is not null);
 
 drop policy if exists "parent_requests_insert_own" on public.parent_requests;
 create policy "parent_requests_insert_own"
@@ -210,6 +224,7 @@ select
   tp.service_areas,
   tp.hourly_rate,
   tp.available_time_slots,
+  tp.available_time_note,
   tp.weekly_capacity,
   tp.tagline,
   tp.intro,
@@ -220,7 +235,8 @@ join public.profiles as p
   on p.id = tp.user_id
 where tp.status = 'approved';
 
-grant select on public.approved_tutor_cards to anon, authenticated;
+revoke all on public.approved_tutor_cards from anon;
+grant select on public.approved_tutor_cards to authenticated;
 
 insert into storage.buckets (id, name, public)
 values ('profile-avatars', 'profile-avatars', true)

@@ -39,6 +39,7 @@ type ParentRequestFormState = {
   budgetHourly: string;
   studySituation: string;
   preferredTimeSlots: string[];
+  preferredTimeNote: string;
   weeklySessionCount: string;
   lessonDuration: string;
   extraNotes: string;
@@ -60,6 +61,7 @@ const DEFAULT_FORM: ParentRequestFormState = {
   budgetHourly: "",
   studySituation: "",
   preferredTimeSlots: [],
+  preferredTimeNote: "",
   weeklySessionCount: "",
   lessonDuration: "1.5小时",
   extraNotes: "",
@@ -143,6 +145,7 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
     const budgetHourly = Number(form.budgetHourly);
     const weeklySessionCount = Number(form.weeklySessionCount);
     const studySituation = form.studySituation.trim();
+    const preferredTimeNote = form.preferredTimeNote.trim();
     const extraNotes = form.extraNotes.trim();
 
     if (!form.subject) {
@@ -215,6 +218,7 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
       study_situation: studySituation,
       preferred_time_slots: form.preferredTimeSlots,
       preferred_time: form.preferredTimeSlots.join(" / "),
+      preferred_time_note: preferredTimeNote || null,
       weekly_session_count: weeklySessionCount,
       lesson_duration: form.lessonDuration,
       extra_notes: extraNotes || null,
@@ -241,7 +245,6 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
       <CardHeader>
         <CardTitle>发布家教需求</CardTitle>
         <CardDescription>
-          把科目、时间、预算和目标分数写清楚，家教更容易判断是否匹配。
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -324,6 +327,17 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="preferred-time-note">补充说明（可选）</Label>
+              <Textarea
+                id="preferred-time-note"
+                placeholder="每周三晚上7-9点，周末下午均可"
+                rows={3}
+                value={form.preferredTimeNote}
+                onChange={(event) => setField("preferredTimeNote", event.target.value)}
+              />
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="budget-hourly">预算（元 / 小时）</Label>
@@ -357,7 +371,6 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-slate-950">上课安排</h2>
               <p className="text-sm text-slate-500">
-                希望上课时间采用和家教侧一致的结构化时段，便于后续直接匹配。
               </p>
             </div>
 
@@ -425,7 +438,7 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-slate-950">学习情况与补充说明</h2>
               <p className="text-sm text-slate-500">
-                建议写清楚当前成绩、目标分数、薄弱点和沟通偏好，方便家教快速判断。
+                建议写清楚当前成绩、目标分数、薄弱点和偏好，方便家教快速判断哦~
               </p>
             </div>
 

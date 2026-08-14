@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { ArrowRight, FileText, PhoneCall, Send, ToggleLeft } from "lucide-react";
 
-import { ProfileBasicForm } from "@/components/profile-basic-form";
 import { TutorProfileForm } from "@/components/tutor-profile-form";
 import { MobileProfileSignOut } from "@/components/mobile-profile-sign-out";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
 import { type MatchRecord, normalizeMatchStatus } from "@/lib/matchmaking";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logSupabaseQuery } from "@/lib/supabase/query-log";
 
 type RelatedProfile = {
   id: string;
@@ -33,13 +33,21 @@ function getStatusLabel(status?: string | null) {
   return "待回应";
 }
 
+function getDisplayName(profile?: RelatedProfile) {
+  return profile?.full_name?.trim() || "未填写姓名";
+}
+
+function getRequestLabel(request?: RequestSummary, requestId?: number) {
+  return request ? `${request.subject} / ${request.grade}` : `需求 ID ${requestId}`;
+}
+
 export default async function TutorProfilePage() {
   const { user, profile } = await requireRole("tutor");
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const tutorProfileSelect =
-    "gender, school, department, academic_stage, gaokao_origin, subjects, service_types, grade_ranges, grade, service_areas, service_area, hourly_rate, available_time_slots, available_days, weekly_capacity, tagline, intro, order_status, status, verification_image_path" as const;
+    "gender, school, department, academic_stage, gaokao_origin, subjects, service_types, grade_ranges, grade, service_areas, service_area, hourly_rate, available_time_slots, available_time_note, available_days, weekly_capacity, tagline, intro, order_status, status, verification_image_path" as const;
 
-  const [{ data: tutorProfile }, { data: matchData }] = await Promise.all([
+  const [tutorProfileResult, matchResult] = await Promise.all([
     supabase
       .from("tutor_profiles")
       .select(tutorProfileSelect)
@@ -54,18 +62,30 @@ export default async function TutorProfilePage() {
       .order("updated_at", { ascending: false }),
   ]);
 
+  const { data: tutorProfile } = logSupabaseQuery("current tutor profile", tutorProfileResult);
+  const { data: matchData } = logSupabaseQuery("tutor match list", matchResult);
+
   const matches = (matchData ?? []) as MatchRecord[];
   const parentIds = Array.from(new Set(matches.map((item) => item.parent_id)));
   const requestIds = Array.from(new Set(matches.map((item) => item.request_id)));
 
-  const [{ data: parentProfiles }, { data: requestRows }] = await Promise.all([
+  const [parentProfileResult, requestResult] = await Promise.all([
     parentIds.length
       ? supabase.from("profiles").select("id, full_name, phone").in("id", parentIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     requestIds.length
       ? supabase.from("parent_requests").select("id, subject, grade").in("id", requestIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  const { data: parentProfiles } = logSupabaseQuery(
+    "matched parent profiles",
+    parentProfileResult
+  );
+  const { data: requestRows } = logSupabaseQuery(
+    "matched parent request summaries",
+    requestResult
+  );
 
   const parentMap = new Map(((parentProfiles ?? []) as RelatedProfile[]).map((item) => [item.id, item]));
   const requestMap = new Map(((requestRows ?? []) as RequestSummary[]).map((item) => [item.id, item]));
@@ -83,10 +103,10 @@ export default async function TutorProfilePage() {
           <div className="mt-4 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                管理资料、接单状态与匹配进展
+                管理家教资料与匹配进展
               </h1>
               <p className="max-w-2xl text-sm leading-7 text-slate-600">
-                这里集中处理个人资料、审核状态、接单状态，以及你与家长之间的感兴趣记录。
+                这里集中处理家教资料表、接单状态、审核状态，以及你与家长之间的感兴趣记录。
               </p>
             </div>
             <Button asChild className="w-full sm:w-auto" variant="outline">
@@ -98,174 +118,141 @@ export default async function TutorProfilePage() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "接单状态", value: orderStatus, sub: "可在家教资料表单中切换" },
-            { label: "审核状态", value: reviewStatus, sub: "展示当前审核进度" },
-            { label: "收到的感兴趣请求", value: `${receivedInterest.length}`, sub: "家长对你发起兴趣" },
-            { label: "已解锁联系方式", value: `${unlockedContacts.length}`, sub: "双方互选成功的记录" },
-          ].map((item) => (
-            <Card className="border-amber-100 bg-white/90" key={item.label}>
-              <CardContent className="p-6">
-                <div className="text-sm text-slate-500">{item.label}</div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{item.value}</div>
-                <div className="mt-2 text-sm text-slate-600">{item.sub}</div>
-              </CardContent>
-            </Card>
-          ))}
+        <section className="grid gap-6 xl:grid-cols-2">
+          <Card className="border-amber-100 bg-amber-50/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ToggleLeft className="h-5 w-5 text-amber-700" />
+                状态总览
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-slate-700">
+              <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
+                接单状态：<span className="font-medium text-slate-950">{orderStatus}</span>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
+                审核状态：<span className="font-medium text-slate-950">{reviewStatus}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-amber-700" />
+                收到的感兴趣请求列表
+              </CardTitle>
+              <CardDescription>展示家长对你发起兴趣的记录，区分待回应、已接受、已拒绝。</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {receivedInterest.length ? (
+                receivedInterest.map((match) => {
+                  const parent = parentMap.get(match.parent_id);
+                  const request = requestMap.get(match.request_id);
+
+                  return (
+                    <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-900">{getDisplayName(parent)}</div>
+                        <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {getRequestLabel(request, match.request_id)}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                  暂无收到的感兴趣请求。
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowRight className="h-5 w-5 text-amber-700" />
+                我发出的感兴趣请求列表
+              </CardTitle>
+              <CardDescription>展示你主动对家长需求发起兴趣的记录。</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {sentInterest.length ? (
+                sentInterest.map((match) => {
+                  const parent = parentMap.get(match.parent_id);
+                  const request = requestMap.get(match.request_id);
+
+                  return (
+                    <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-900">{getDisplayName(parent)}</div>
+                        <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
+                      </div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {getRequestLabel(request, match.request_id)}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                  暂无发出的感兴趣请求。
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PhoneCall className="h-5 w-5 text-emerald-600" />
+                已解锁的联系方式记录
+              </CardTitle>
+              <CardDescription>仅展示已互选成功的家长联系方式。</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {unlockedContacts.length ? (
+                unlockedContacts.map((match) => {
+                  const parent = parentMap.get(match.parent_id);
+                  const request = requestMap.get(match.request_id);
+
+                  return (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3" key={match.id}>
+                      <div className="font-medium text-slate-900">{getDisplayName(parent)}</div>
+                      <div className="mt-1 text-sm text-slate-600">
+                        {getRequestLabel(request, match.request_id)}
+                      </div>
+                      <div className="mt-2 text-sm text-slate-700">
+                        联系方式：{parent?.phone?.trim() || "暂无手机号"}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                  暂无已解锁记录。
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
-          <div className="space-y-6">
-            <ProfileBasicForm
-              description="可先更新基础资料，再继续维护完整的家教档案与接单状态。"
-              profile={profile}
-            />
-            <TutorProfileForm profile={profile} tutorProfile={tutorProfile} />
-          </div>
+        <TutorProfileForm profile={profile} tutorProfile={tutorProfile} />
 
-          <div className="space-y-6">
-            <Card className="border-amber-100 bg-amber-50/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ToggleLeft className="h-5 w-5 text-amber-700" />
-                  状态总览
-                </CardTitle>
-                <CardDescription>家教端重点关注接单状态和平台审核进度。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-slate-700">
-                <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
-                  接单状态：<span className="font-medium text-slate-950">{orderStatus}</span>
-                </div>
-                <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
-                  审核状态：<span className="font-medium text-slate-950">{reviewStatus}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-amber-700" />
-                  收到的感兴趣请求列表
-                </CardTitle>
-                <CardDescription>展示家长对你发起兴趣的记录，区分待回应、已接受、已拒绝。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {receivedInterest.length ? (
-                  receivedInterest.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
-                    const request = requestMap.get(match.request_id);
-
-                    return (
-                      <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium text-slate-900">
-                            {parent?.full_name?.trim() || "未填写姓名"}
-                          </div>
-                          <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
-                        </div>
-                        <div className="mt-1 text-sm text-slate-600">
-                          {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                    暂无收到的感兴趣请求。
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ArrowRight className="h-5 w-5 text-amber-700" />
-                  我发出的感兴趣请求列表
-                </CardTitle>
-                <CardDescription>展示你主动对家长需求发起兴趣的记录。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {sentInterest.length ? (
-                  sentInterest.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
-                    const request = requestMap.get(match.request_id);
-
-                    return (
-                      <div className="rounded-2xl border border-slate-200 px-4 py-3" key={match.id}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium text-slate-900">
-                            {parent?.full_name?.trim() || "未填写姓名"}
-                          </div>
-                          <span className="text-sm text-slate-500">{getStatusLabel(match.status)}</span>
-                        </div>
-                        <div className="mt-1 text-sm text-slate-600">
-                          {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                    暂无发出的感兴趣请求。
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PhoneCall className="h-5 w-5 text-emerald-600" />
-                  已解锁的联系方式记录
-                </CardTitle>
-                <CardDescription>仅展示已互选成功的家长联系方式。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {unlockedContacts.length ? (
-                  unlockedContacts.map((match) => {
-                    const parent = parentMap.get(match.parent_id);
-                    const request = requestMap.get(match.request_id);
-
-                    return (
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3" key={match.id}>
-                        <div className="font-medium text-slate-900">
-                          {parent?.full_name?.trim() || "未填写姓名"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-600">
-                          {request ? `${request.subject} / ${request.grade}` : `需求 ID ${match.request_id}`}
-                        </div>
-                        <div className="mt-2 text-sm text-slate-700">
-                          联系方式：{parent?.phone?.trim() || "暂无手机号"}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-                    暂无已解锁记录。
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-200 bg-slate-50/70">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-slate-700" />
-                  意见反馈入口
-                </CardTitle>
-                <CardDescription>当前先提供统一反馈通道，可后续接入正式反馈表单。</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm leading-7 text-slate-600">
-                如需反馈审核、接单或匹配问题，请联系平台客服邮箱
-                <span className="mx-1 font-medium text-slate-900">feedback@tutor-platform.local</span>。
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <Card className="border-slate-200 bg-slate-50/70">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-slate-700" />
+              意见反馈入口
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-7 text-slate-600">
+            如需反馈审核、接单或匹配问题，请联系平台客服邮箱
+            <span className="mx-1 font-medium text-slate-900">weiming_0205@qq.com</span>。
+          </CardContent>
+        </Card>
         <MobileProfileSignOut />
       </div>
     </main>

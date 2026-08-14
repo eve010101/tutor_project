@@ -47,6 +47,7 @@ export type ParentRequestRecord = {
   study_situation?: string | null;
   preferred_time_slots?: string[] | null;
   preferred_time?: string | null;
+  preferred_time_note?: string | null;
   weekly_session_count?: number | null;
   lesson_duration?: string | null;
   extra_notes?: string | null;
@@ -65,6 +66,7 @@ export type NormalizedParentRequest = {
   budgetHourly: number | null;
   studySituation: string;
   preferredTimeSlots: string[];
+  preferredTimeNote: string;
   weeklySessionCount: number | null;
   lessonDuration: string;
   extraNotes: string;
@@ -108,11 +110,9 @@ export function normalizeParentRequestTimeSlots(
       if (legacy.includes("工作日上午") || legacy.includes("工作日早")) {
         nextValues.push("工作日上午");
       }
-
       if (legacy.includes("工作日下午")) {
         nextValues.push("工作日下午");
       }
-
       if (legacy.includes("工作日晚上") || legacy.includes("工作日晚")) {
         nextValues.push("工作日晚上");
       }
@@ -126,11 +126,9 @@ export function normalizeParentRequestTimeSlots(
       if (legacy.includes("周末上午")) {
         nextValues.push("周末上午");
       }
-
       if (legacy.includes("周末下午")) {
         nextValues.push("周末下午");
       }
-
       if (legacy.includes("周末晚上") || legacy.includes("周末晚")) {
         nextValues.push("周末晚上");
       }
@@ -161,6 +159,7 @@ export function normalizeParentRequest(record: ParentRequestRecord): NormalizedP
       record.preferred_time_slots,
       record.preferred_time
     ),
+    preferredTimeNote: record.preferred_time_note?.trim() ?? "",
     weeklySessionCount: record.weekly_session_count ?? null,
     lessonDuration,
     extraNotes: record.extra_notes?.trim() || record.notes?.trim() || "",

@@ -43,7 +43,6 @@ import { Textarea } from "@/components/ui/textarea";
 interface TutorProfileFormProps {
   profile: {
     full_name?: string | null;
-    avatar_url?: string | null;
     bio?: string | null;
   };
   tutorProfile?: {
@@ -60,6 +59,7 @@ interface TutorProfileFormProps {
     service_area?: string | null;
     hourly_rate?: number | null;
     available_time_slots?: string[] | null;
+    available_time_note?: string | null;
     intro?: string | null;
     weekly_capacity?: number | null;
     tagline?: string | null;
@@ -72,7 +72,6 @@ interface TutorProfileFormProps {
 
 type TutorProfileFormState = {
   fullName: string;
-  avatarUrl: string;
   gender: string;
   school: string;
   department: string;
@@ -84,6 +83,7 @@ type TutorProfileFormState = {
   hourlyRate: string;
   serviceAreas: string[];
   availableTimeSlots: string[];
+  availableTimeNote: string;
   weeklyCapacity: string;
   tagline: string;
   intro: string;
@@ -239,21 +239,17 @@ function SelectionButton({
 
 export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInputRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<SaveMessage>(null);
   const [reviewStatus, setReviewStatus] = useState<TutorReviewStatus>(
     normalizeTutorReviewStatus(tutorProfile?.status)
   );
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [verificationFile, setVerificationFile] = useState<File | null>(null);
-  const [avatarObjectUrl, setAvatarObjectUrl] = useState<string | null>(null);
   const [verificationObjectUrl, setVerificationObjectUrl] = useState<string | null>(null);
   const [verificationSignedUrl, setVerificationSignedUrl] = useState<string | null>(null);
   const [form, setForm] = useState<TutorProfileFormState>({
     fullName: profile.full_name ?? "",
-    avatarUrl: profile.avatar_url ?? "",
     gender: tutorProfile?.gender ?? "",
     school: tutorProfile?.school ?? "",
     department: tutorProfile?.department ?? "",
@@ -277,6 +273,7 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
       tutorProfile?.available_time_slots,
       tutorProfile?.available_days
     ),
+    availableTimeNote: tutorProfile?.available_time_note ?? "",
     weeklyCapacity: tutorProfile?.weekly_capacity
       ? String(tutorProfile.weekly_capacity)
       : "",
@@ -285,18 +282,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
     orderStatus: tutorProfile?.order_status ?? "接单中",
     verificationImagePath: tutorProfile?.verification_image_path ?? "",
   });
-
-  useEffect(() => {
-    if (!avatarFile) {
-      setAvatarObjectUrl(null);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(avatarFile);
-    setAvatarObjectUrl(objectUrl);
-
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [avatarFile]);
 
   useEffect(() => {
     if (!verificationFile) {
@@ -342,7 +327,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
     };
   }, [form.verificationImagePath, supabase, verificationFile]);
 
-  const avatarPreviewUrl = avatarObjectUrl ?? form.avatarUrl;
   const verificationPreviewUrl = verificationObjectUrl ?? verificationSignedUrl;
   const reviewMeta = getTutorReviewStatusMeta(reviewStatus);
 
@@ -368,25 +352,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
         [key]: nextValues,
       };
     });
-  }
-
-  function handleAvatarSelection(event: ChangeEvent<HTMLInputElement>) {
-    const nextFile = event.target.files?.[0];
-
-    if (!nextFile) {
-      return;
-    }
-
-    const validationMessage = validateImage(nextFile);
-
-    if (validationMessage) {
-      setMessage({ type: "error", text: validationMessage });
-      event.target.value = "";
-      return;
-    }
-
-    setMessage(null);
-    setAvatarFile(nextFile);
   }
 
   function handleVerificationSelection(event: ChangeEvent<HTMLInputElement>) {
@@ -432,12 +397,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
     const intro = form.intro.trim();
     const hourlyRate = Number(form.hourlyRate);
     const weeklyCapacity = Number(form.weeklyCapacity);
-
-    if (!form.avatarUrl && !avatarFile) {
-      setMessage({ type: "error", text: "请先上传头像。" });
-      setSaving(false);
-      return;
-    }
 
     if (!fullName) {
       setMessage({ type: "error", text: "请填写姓名。" });
@@ -529,27 +488,7 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
       return;
     }
 
-    let avatarUrl = form.avatarUrl;
     let verificationImagePath = form.verificationImagePath;
-
-    if (avatarFile) {
-      const avatarPath = `${user.id}/avatar`;
-      const { error: avatarError } = await supabase.storage
-        .from("profile-avatars")
-        .upload(avatarPath, avatarFile, {
-          upsert: true,
-          contentType: avatarFile.type,
-        });
-
-      if (avatarError) {
-        setMessage({ type: "error", text: avatarError.message });
-        setSaving(false);
-        return;
-      }
-
-      const { data } = supabase.storage.from("profile-avatars").getPublicUrl(avatarPath);
-      avatarUrl = data.publicUrl;
-    }
 
     let nextReviewStatus = reviewStatus;
 
@@ -577,7 +516,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
         .from("profiles")
         .update({
           full_name: fullName,
-          avatar_url: avatarUrl || null,
           bio: intro || null,
         })
         .eq("id", user.id),
@@ -598,6 +536,7 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
           hourly_rate: hourlyRate,
           available_time_slots: form.availableTimeSlots,
           available_days: form.availableTimeSlots.join(" / ") || null,
+          available_time_note: form.availableTimeNote.trim() || null,
           weekly_capacity: weeklyCapacity,
           tagline,
           intro,
@@ -623,7 +562,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
 
     setForm((current) => ({
       ...current,
-      avatarUrl,
       verificationImagePath,
       fullName,
       school,
@@ -634,7 +572,6 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
       intro,
     }));
     setReviewStatus(nextReviewStatus);
-    setAvatarFile(null);
     setVerificationFile(null);
     setMessage({
       type: "success",
@@ -653,7 +590,7 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
       <CardHeader>
         <CardTitle>家教资料表</CardTitle>
         <CardDescription>
-          资料将用于平台审核和后续接单展示。上传头像与学信网截图后，可直接保存在当前账号下。
+          资料将用于平台审核和后续接单展示。上传学信网截图后，可直接保存在当前账号下。
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -689,48 +626,11 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-slate-950">基础信息</h2>
               <p className="text-sm text-slate-500">
-                姓名仅平台可见，不对外展示全名；头像会用于家长侧资料卡展示。
+                姓名仅平台可见，不对外展示全名。
               </p>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[0.88fr_1.12fr]">
-              <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-5">
-                <div className="space-y-3">
-                  <Label>头像</Label>
-                  <div
-                    className={cn(
-                      "flex h-40 items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 bg-cover bg-center",
-                      avatarPreviewUrl ? "border-slate-300" : "text-slate-400"
-                    )}
-                    style={
-                      avatarPreviewUrl
-                        ? { backgroundImage: `url("${avatarPreviewUrl}")` }
-                        : undefined
-                    }
-                  >
-                    {avatarPreviewUrl ? null : <UploadCloud className="h-7 w-7" />}
-                  </div>
-                  <p className="text-xs leading-5 text-slate-500">
-                    建议上传清晰正脸照片，5MB 以内，支持 PNG / JPG / WebP。
-                  </p>
-                  <input
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarSelection}
-                    ref={avatarInputRef}
-                    type="file"
-                  />
-                  <Button
-                    onClick={() => avatarInputRef.current?.click()}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    {avatarPreviewUrl ? "重新上传头像" : "上传头像"}
-                  </Button>
-                </div>
-              </div>
-
+            <div className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="full-name">姓名</Label>
@@ -829,6 +729,17 @@ export function TutorProfileForm({ profile, tutorProfile }: TutorProfileFormProp
               <p className="text-sm text-slate-500">
                 服务类型、授课年级、区域和时间会直接影响后续需求匹配结果。
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="available-time-note">补充说明（可选）</Label>
+              <Textarea
+                id="available-time-note"
+                placeholder="每周三晚上7-9点，周末下午均可"
+                rows={3}
+                value={form.availableTimeNote}
+                onChange={(event) => setField("availableTimeNote", event.target.value)}
+              />
             </div>
 
             <div className="space-y-3">

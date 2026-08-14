@@ -5,10 +5,12 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUserProfile } from "@/lib/auth";
 import { MATCH_STATUS, normalizeMatchStatus, type MatchRecord } from "@/lib/matchmaking";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import { Button } from "@/components/ui/button";
 
-export default async function MatchSuccessPage({ params }: { params: { id: string } }) {
-  const matchId = Number(params.id);
+export default async function MatchSuccessPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const matchId = Number(id);
   if (!Number.isInteger(matchId)) {
     notFound();
   }
@@ -18,12 +20,13 @@ export default async function MatchSuccessPage({ params }: { params: { id: strin
     redirect("/auth");
   }
 
-  const supabase = createSupabaseServerClient();
-  const { data: matchData } = await supabase
+  const supabase = await createSupabaseServerClient();
+  const matchResult = await supabase
     .from("match_records")
     .select("*")
     .eq("id", matchId)
     .maybeSingle();
+  const { data: matchData } = logSupabaseQuery("matched record", matchResult);
 
   if (!matchData) {
     notFound();
@@ -39,11 +42,12 @@ export default async function MatchSuccessPage({ params }: { params: { id: strin
   }
 
   const counterpartId = user.id === match.parent_id ? match.tutor_id : match.parent_id;
-  const { data: counterpart } = await supabase
+  const counterpartResult = await supabase
     .from("profiles")
     .select("full_name, phone")
     .eq("id", counterpartId)
     .maybeSingle();
+  const { data: counterpart } = logSupabaseQuery("matched counterpart contact", counterpartResult);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">

@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-import { normalizeParentRequest, sortParentRequests, type ParentRequestRecord } from "@/lib/parent-request";
+import {
+  normalizeParentRequest,
+  sortParentRequests,
+  type ParentRequestRecord,
+} from "@/lib/parent-request";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ParentRequestListProps {
@@ -18,8 +22,14 @@ function RequestMeta({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ParentRequestList({ requests, emptyTitle, emptyDescription }: ParentRequestListProps) {
-  const normalizedRequests = sortParentRequests(requests).map((request) => normalizeParentRequest(request));
+export function ParentRequestList({
+  requests,
+  emptyTitle,
+  emptyDescription,
+}: ParentRequestListProps) {
+  const normalizedRequests = sortParentRequests(requests).map((request) =>
+    normalizeParentRequest(request)
+  );
 
   if (!normalizedRequests.length) {
     return (
@@ -27,7 +37,9 @@ export function ParentRequestList({ requests, emptyTitle, emptyDescription }: Pa
         <CardHeader>
           <CardTitle>{emptyTitle}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm leading-7 text-slate-600">{emptyDescription}</CardContent>
+        <CardContent className="text-sm leading-7 text-slate-600">
+          {emptyDescription}
+        </CardContent>
       </Card>
     );
   }
@@ -35,7 +47,17 @@ export function ParentRequestList({ requests, emptyTitle, emptyDescription }: Pa
   return (
     <section className="grid gap-5 xl:grid-cols-2">
       {normalizedRequests.map((request) => {
-        const budgetSummary = request.budgetHourly ? `¥${request.budgetHourly} / 小时` : "预算待补充";
+        const budgetSummary = request.budgetHourly
+          ? `¥${request.budgetHourly} / 小时`
+          : "预算待补充";
+        const timeSummary = [
+          request.preferredTimeSlots.length
+            ? request.preferredTimeSlots.join(" / ")
+            : "",
+          request.preferredTimeNote,
+        ]
+          .filter(Boolean)
+          .join("；");
 
         return (
           <Link className="block" href={`/parent/request/${request.id}`} key={request.id}>
@@ -48,6 +70,7 @@ export function ParentRequestList({ requests, emptyTitle, emptyDescription }: Pa
                 <RequestMeta label="科目" value={request.subject} />
                 <RequestMeta label="地区" value={`${request.city} ${request.area}`} />
                 <RequestMeta label="预算" value={budgetSummary} />
+                <RequestMeta label="上课时间" value={timeSummary || "暂无上课时间"} />
               </CardContent>
             </Card>
           </Link>

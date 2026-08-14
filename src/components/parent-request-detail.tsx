@@ -44,7 +44,9 @@ export function ParentRequestDetail({
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <header className="border-b border-slate-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-5 sm:p-7">
             <div className="flex flex-col gap-2">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950">{request.subject}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+                {request.subject}
+              </h1>
               <p className="text-sm text-slate-600">家长需求详情</p>
             </div>
           </header>
@@ -70,6 +72,14 @@ export function ParentRequestDetail({
                   <CalendarDays className="h-4 w-4 text-sky-700" />
                   {request.weeklySessionCount ? `每周 ${request.weeklySessionCount} 次` : "待补充"}
                 </span>
+              </DetailRow>
+              <DetailRow label="希望上课时间">
+                {request.preferredTimeSlots.length
+                  ? request.preferredTimeSlots.join(" / ")
+                  : "暂无"}
+              </DetailRow>
+              <DetailRow label="时间补充说明">
+                {request.preferredTimeNote || "暂无"}
               </DetailRow>
               <DetailRow label="对家教的要求">
                 <span className="inline-flex items-start gap-2">

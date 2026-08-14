@@ -2,13 +2,16 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/auth";
+import { logSupabaseQuery } from "@/lib/supabase/query-log";
+
+const DEVELOPMENT_PREVIEW_USER_ID = "00000000-0000-4000-8000-000000000000";
 
 export function getRolePath(role?: string | null) {
   return role === "parent" ? "/parent/profile" : "/tutor/profile";
 }
 
 export async function getCurrentUserProfile() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -17,11 +20,12 @@ export async function getCurrentUserProfile() {
     return { user: null, profile: null };
   }
 
-  const { data: profile } = await supabase
+  const profileResult = await supabase
     .from("profiles")
-    .select("id, role, phone, full_name, city, avatar_url, bio")
+    .select("id, role, phone, full_name, city, bio")
     .eq("id", user.id)
     .maybeSingle();
+  const { data: profile } = logSupabaseQuery("current user profile", profileResult);
 
   return { user, profile };
 }
@@ -40,16 +44,14 @@ export async function redirectAuthenticatedUser() {
 
 export async function requireRole(role: UserRole) {
   if (process.env.NODE_ENV === "development") {
-    // Provide the fields protected pages use while bypassing role checks locally.
     return {
-      user: { id: "development-user" },
+      user: { id: DEVELOPMENT_PREVIEW_USER_ID },
       profile: {
-        id: "development-user",
+        id: DEVELOPMENT_PREVIEW_USER_ID,
         role,
         phone: null,
-        full_name: "开发测试用户",
+        full_name: "开发预览用户",
         city: "北京",
-        avatar_url: null,
         bio: null,
       },
     };
@@ -73,7 +75,6 @@ export async function requireRole(role: UserRole) {
       phone: profile.phone,
       full_name: profile.full_name,
       city: profile.city,
-      avatar_url: profile.avatar_url,
       bio: profile.bio,
     },
   };

@@ -38,13 +38,14 @@ export default async function RootLayout({
     <html lang="zh-CN">
       <body className={`${geistSans.variable} ${geistMono.variable} bg-white text-slate-950 antialiased`}>
         <GlobalNavigation role={role} />
-        <div
-          className={role || process.env.NODE_ENV === "development" ? "pb-16 md:pb-0" : undefined}
-        >
+        <div className={role || process.env.NODE_ENV === "development" ? "pb-16 md:pb-0" : undefined}>
           {children}
           <SiteFooter />
         </div>
-        <DevNavigation />
+        <DevNavigation
+          isAuthenticated={Boolean(user)}
+          role={profile?.role ?? null}
+        />
       </body>
     </html>
   );

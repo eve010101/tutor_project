@@ -8,6 +8,7 @@ alter table public.tutor_profiles
   add column if not exists grade_ranges text[] not null default '{}'::text[],
   add column if not exists service_areas text[] not null default '{}'::text[],
   add column if not exists available_time_slots text[] not null default '{}'::text[],
+  add column if not exists available_time_note text,
   add column if not exists weekly_capacity integer,
   add column if not exists tagline text,
   add column if not exists order_status text not null default '接单中',
@@ -17,6 +18,16 @@ alter table public.tutor_profiles
 update public.tutor_profiles
 set status = 'pending'
 where status is null;
+
+alter table public.tutor_profiles enable row level security;
+
+drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
+create policy "tutor_profiles_select_authenticated"
+on public.tutor_profiles for select
+to authenticated
+using (auth.uid() is not null);
+
+grant select on public.tutor_profiles to authenticated;
 
 create or replace view public.approved_tutor_cards as
 select
@@ -37,6 +48,7 @@ select
   tp.service_areas,
   tp.hourly_rate,
   tp.available_time_slots,
+  tp.available_time_note,
   tp.weekly_capacity,
   tp.tagline,
   tp.intro,
@@ -47,7 +59,8 @@ join public.profiles as p
   on p.id = tp.user_id
 where tp.status = 'approved';
 
-grant select on public.approved_tutor_cards to anon, authenticated;
+revoke all on public.approved_tutor_cards from anon;
+grant select on public.approved_tutor_cards to authenticated;
 
 insert into storage.buckets (id, name, public)
 values ('profile-avatars', 'profile-avatars', true)

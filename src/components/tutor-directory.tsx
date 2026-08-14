@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 export type TutorCard = {
   user_id: string;
   display_name: string;
-  avatar_url?: string | null;
   gender?: string | null;
   school?: string | null;
   department?: string | null;
@@ -29,6 +28,7 @@ export type TutorCard = {
   service_areas?: string[] | null;
   hourly_rate?: number | null;
   available_time_slots?: string[] | null;
+  available_time_note?: string | null;
   weekly_capacity?: number | null;
   tagline?: string | null;
   intro?: string | null;
@@ -120,11 +120,8 @@ function TutorTile({ tutor, compact = false }: { tutor: TutorCard; compact?: boo
       href={`/tutors/${tutor.user_id}`}
     >
     <article className={cn("rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md", compact && "p-4")}>
-      <div className="flex gap-3.5">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-sky-100 to-indigo-100 text-lg font-semibold text-sky-700">
-          {tutor.avatar_url ? <img src={tutor.avatar_url} alt={`${tutor.display_name}头像`} className="h-full w-full object-cover" /> : tutor.display_name.slice(0, 1)}
-        </div>
-        <div className="min-w-0 flex-1">
+      <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-semibold text-slate-900">{tutor.display_name}</h2>
             {tutor.gender ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{tutor.gender}</span> : null}
@@ -147,7 +144,7 @@ function TutorTile({ tutor, compact = false }: { tutor: TutorCard; compact?: boo
   );
 }
 
-export function TutorDirectory({ tutors }: { tutors: TutorCard[] }) {
+export function TutorDirectory({ tutors, loadError }: { tutors: TutorCard[]; loadError?: string }) {
   const [keyword, setKeyword] = useState("");
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const updateFilter = (key: keyof Filters) => (value: string) => setFilters((current) => ({ ...current, [key]: value }));
@@ -171,7 +168,7 @@ export function TutorDirectory({ tutors }: { tutors: TutorCard[] }) {
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><SelectFilter label="科目" value={filters.subject} options={uniqueValues(tutors, "subjects")} onChange={updateFilter("subject")} /><SelectFilter label="年级段" value={filters.grade} options={uniqueValues(tutors, "grade_ranges")} onChange={updateFilter("grade")} /><SelectFilter label="性别" value={filters.gender} options={["男", "女"]} onChange={updateFilter("gender")} /><SelectFilter label="价格区间" value={filters.price} options={priceOptions} onChange={updateFilter("price")} /><SelectFilter label="所在区域" value={filters.area} options={uniqueValues(tutors, "service_areas")} onChange={updateFilter("area")} /><SelectFilter label="服务类型" value={filters.service} options={uniqueValues(tutors, "service_types")} onChange={updateFilter("service")} /></div>
           {(activeFilterCount || keyword) ? <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">已找到 <b className="text-slate-900">{results.length}</b> 位老师</span><button onClick={() => { setFilters(initialFilters); setKeyword(""); }} className="text-sky-700 hover:text-sky-900">清空筛选</button></div> : null}
         </section>
-        {results.length ? <section className="mt-6 grid gap-4 lg:grid-cols-2">{results.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} />)}</section> : <section className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><Search className="h-6 w-6" /></div><h2 className="mt-4 text-lg font-semibold text-slate-900">暂时没有符合条件的家教，试试放宽筛选条件</h2><button onClick={() => { setFilters(initialFilters); setKeyword(""); }} className="mt-3 text-sm font-medium text-sky-700 hover:text-sky-900">查看全部家教</button>{suggestions.length ? <div className="mx-auto mt-8 max-w-4xl border-t border-slate-100 pt-7 text-left"><h3 className="text-base font-semibold text-slate-900">相近的老师推荐</h3><div className="mt-4 grid gap-4 md:grid-cols-3">{suggestions.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} compact />)}</div></div> : null}</section>}
+        {loadError ? <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-8"><h2 className="font-semibold text-red-900">家教列表读取失败</h2><p className="mt-2 text-sm leading-6 text-red-700">{loadError}</p><p className="mt-2 text-xs text-red-600">请确认登录状态和 Supabase RLS 策略后刷新页面。</p></section> : results.length ? <section className="mt-6 grid gap-4 lg:grid-cols-2">{results.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} />)}</section> : <section className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><Search className="h-6 w-6" /></div><h2 className="mt-4 text-lg font-semibold text-slate-900">暂时没有符合条件的家教，试试放宽筛选条件</h2><button onClick={() => { setFilters(initialFilters); setKeyword(""); }} className="mt-3 text-sm font-medium text-sky-700 hover:text-sky-900">查看全部家教</button>{suggestions.length ? <div className="mx-auto mt-8 max-w-4xl border-t border-slate-100 pt-7 text-left"><h3 className="text-base font-semibold text-slate-900">相近的老师推荐</h3><div className="mt-4 grid gap-4 md:grid-cols-3">{suggestions.map((tutor) => <TutorTile key={tutor.user_id} tutor={tutor} compact />)}</div></div> : null}</section>}
       </div>
     </main>
   );
