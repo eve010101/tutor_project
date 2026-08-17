@@ -37,12 +37,14 @@ NEXT_PUBLIC_SUPABASE_URL=你的 Supabase Project URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=你的 Supabase Publishable Key
 NEXT_PUBLIC_SUPABASE_ANON_KEY=如果项目还是显示 anon key，也可以填这里
 SUPABASE_SERVICE_ROLE_KEY=你的 Supabase Service Role Key
+ADMIN_USER_IDS=管理员的Supabase用户UUID，多个用英文逗号分隔
 ```
 
 说明：
 
 - 登录和会话使用前端 `publishable/anon key`
-- 注册和开发环境重置密码使用服务端 `SUPABASE_SERVICE_ROLE_KEY`
+- 注册和审核后台使用服务端 `SUPABASE_SERVICE_ROLE_KEY`
+- 管理后台必须配置 `ADMIN_USER_IDS`；未配置时默认拒绝所有访问
 
 ## Supabase 配置
 

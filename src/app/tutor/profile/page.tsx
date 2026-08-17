@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth";
 import { type MatchRecord, normalizeMatchStatus } from "@/lib/matchmaking";
+import { normalizeParentRequest, type ParentRequestRecord } from "@/lib/parent-request";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
+import { getTutorReviewStatusMeta } from "@/lib/tutor-review-status";
 
 type RelatedProfile = {
   id: string;
@@ -16,7 +18,7 @@ type RelatedProfile = {
   phone: string | null;
 };
 
-type RequestSummary = {
+type RequestSummary = ParentRequestRecord & {
   id: number;
   subject: string;
   grade: string;
@@ -38,7 +40,13 @@ function getDisplayName(profile?: RelatedProfile) {
 }
 
 function getRequestLabel(request?: RequestSummary, requestId?: number) {
-  return request ? `${request.subject} / ${request.grade}` : `需求 ID ${requestId}`;
+  if (!request) {
+    return `需求 ID ${requestId}`;
+  }
+
+  const normalizedRequest = normalizeParentRequest(request);
+
+  return `${normalizedRequest.subject} / ${normalizedRequest.grade}`;
 }
 
 export default async function TutorProfilePage() {
@@ -93,7 +101,7 @@ export default async function TutorProfilePage() {
   const sentInterest = matches.filter((item) => item.tutor_interested);
   const unlockedContacts = matches.filter((item) => normalizeMatchStatus(item.status) === "matched");
   const orderStatus = tutorProfile?.order_status ?? "接单中";
-  const reviewStatus = tutorProfile?.status ?? "pending";
+  const reviewStatus = getTutorReviewStatusMeta(tutorProfile?.status);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#fffef7_0%,#f8fafc_100%)] px-4 py-8 sm:px-6 lg:px-8">
@@ -131,7 +139,7 @@ export default async function TutorProfilePage() {
                 接单状态：<span className="font-medium text-slate-950">{orderStatus}</span>
               </div>
               <div className="rounded-2xl border border-amber-200 bg-white px-4 py-3">
-                审核状态：<span className="font-medium text-slate-950">{reviewStatus}</span>
+                审核状态：<span className="font-medium text-slate-950">{reviewStatus.label}</span>
               </div>
             </CardContent>
           </Card>

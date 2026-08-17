@@ -1,5 +1,8 @@
-import { MATCH_STATUS, normalizeMatchStatus, type MatchRecord } from "@/lib/matchmaking";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  MATCH_STATUS,
+  normalizeMatchStatus,
+  type MatchRecord,
+} from "@/lib/matchmaking";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
 
 export type MatchContactProfile = {
@@ -10,7 +13,10 @@ export type MatchContactProfile = {
 type SupabaseProfileClient = {
   from: (table: "profiles") => {
     select: (columns: string) => {
-      eq: (column: "id", value: string) => {
+      eq: (
+        column: "id",
+        value: string,
+      ) => {
         maybeSingle: () => PromiseLike<{
           data: {
             full_name: string | null;
@@ -35,7 +41,10 @@ function getCounterpartId(match: MatchRecord, viewerId: string) {
   return null;
 }
 
-async function queryProfileContact(client: SupabaseProfileClient, profileId: string) {
+async function queryProfileContact(
+  client: SupabaseProfileClient,
+  profileId: string,
+) {
   const result = await client
     .from("profiles")
     .select("full_name, phone")
@@ -61,7 +70,11 @@ export async function getUnlockedCounterpartContact({
   viewerId?: string | null;
   supabase: unknown;
 }): Promise<MatchContactProfile | null> {
-  if (!match || !viewerId || normalizeMatchStatus(match.status) !== MATCH_STATUS.MATCHED) {
+  if (
+    !match ||
+    !viewerId ||
+    normalizeMatchStatus(match.status) !== MATCH_STATUS.MATCHED
+  ) {
     return null;
   }
 
@@ -70,12 +83,5 @@ export async function getUnlockedCounterpartContact({
     return null;
   }
 
-  try {
-    return await queryProfileContact(
-      createSupabaseAdminClient() as unknown as SupabaseProfileClient,
-      counterpartId
-    );
-  } catch {
-    return queryProfileContact(supabase as SupabaseProfileClient, counterpartId);
-  }
+  return queryProfileContact(supabase as SupabaseProfileClient, counterpartId);
 }

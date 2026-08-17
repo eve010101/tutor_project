@@ -19,7 +19,6 @@ import { fetchSupabaseWithFallback } from "@/lib/supabase/query-with-fallback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParentRequestList } from "@/components/parent-request-list";
-import { RegistrationOnboardingBanner } from "@/components/registration-onboarding-banner";
 
 const parentRequestSelect =
   "id, subject, service_type, grade, city, area, budget_hourly, budget_min, budget_max, study_situation, preferred_time_slots, preferred_time, preferred_time_note, weekly_session_count, lesson_duration, extra_notes, notes, status, created_at" as const;
@@ -225,7 +224,6 @@ export function TutorRequestDirectory() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.14),_transparent_28%),linear-gradient(180deg,#fffef7_0%,#f8fafc_100%)] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <RegistrationOnboardingBanner role="tutor" />
         <section className="rounded-[32px] border border-amber-100 bg-white/90 p-6 shadow-sm backdrop-blur sm:p-8">
           <p className="text-sm font-medium tracking-wide text-amber-700">家长需求列表</p>
           <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">

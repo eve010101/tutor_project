@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { Check, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -264,6 +265,7 @@ export function TutorProfileForm({
   profile,
   tutorProfile,
 }: TutorProfileFormProps) {
+  const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const verificationInputRef = useRef<HTMLInputElement | null>(null);
   const [saving, setSaving] = useState(false);
@@ -618,6 +620,7 @@ export function TutorProfileForm({
             : "资料已保存，请根据审核意见调整后重新提交。",
     });
     setSaving(false);
+    router.refresh();
   }
 
   return (

@@ -1,109 +1,90 @@
-create table if not exists public.match_records (
-  id bigint generated always as identity primary key,
-  request_id bigint not null references public.parent_requests(id) on delete cascade,
-  parent_id uuid not null references auth.users(id) on delete cascade,
-  tutor_id uuid not null references auth.users(id) on delete cascade,
-  status text not null default 'pending',
-  parent_interested boolean not null default false,
-  tutor_interested boolean not null default false,
-  parent_interest_at timestamptz,
-  tutor_interest_at timestamptz,
-  contact_unlocked_at timestamptz,
-  rejected_by text,
-  reject_reason text,
-  rejected_at timestamptz,
-  parent_requested_verification_at timestamptz,
-  tutor_shared_verification_path text,
-  tutor_shared_verification_at timestamptz,
-  review_reminder_at timestamptz,
-  parent_review_rating integer check (parent_review_rating between 1 and 5),
-  parent_review_comment text,
-  parent_review_created_at timestamptz,
-  tutor_review_comment text,
-  tutor_review_created_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (request_id, tutor_id)
-);
+-- Apply this migration once to existing projects after taking a database backup.
+-- It closes privilege escalation, forged match consent, and private-file exposure.
 
-create or replace function public.sync_match_record_status()
+begin;
+
+alter table public.profiles enable row level security;
+alter table public.tutor_profiles enable row level security;
+alter table public.parent_requests enable row level security;
+alter table public.match_records enable row level security;
+
+-- Profiles: users may edit presentation fields, but identity and role are immutable.
+revoke update on public.profiles from authenticated;
+grant update (full_name, city, bio, avatar_url) on public.profiles to authenticated;
+
+create or replace function public.enforce_profile_identity_security()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
-  if new.parent_interested and new.tutor_interested then
-    new.status := 'matched';
-    if new.contact_unlocked_at is null then
-      new.contact_unlocked_at := now();
-    end if;
-  elsif new.status <> 'rejected' then
-    new.status := 'pending';
-    new.contact_unlocked_at := null;
+  if auth.role() = 'authenticated' and (
+    new.id is distinct from old.id
+    or new.phone is distinct from old.phone
+    or new.role is distinct from old.role
+  ) then
+    raise exception 'profile identity fields cannot be changed';
   end if;
 
   return new;
 end;
 $$;
 
-drop trigger if exists match_records_sync_status on public.match_records;
-create trigger match_records_sync_status
-before insert or update on public.match_records
-for each row execute function public.sync_match_record_status();
+drop trigger if exists profiles_enforce_identity_security on public.profiles;
+create trigger profiles_enforce_identity_security
+before update on public.profiles
+for each row execute function public.enforce_profile_identity_security();
 
-drop trigger if exists match_records_set_updated_at on public.match_records;
-create trigger match_records_set_updated_at
-before update on public.match_records
-for each row execute function public.set_updated_at();
+-- Tutor profiles: only the owner can read the base row. Public consumers use
+-- approved_tutor_cards, which excludes verification paths and unapproved rows.
+drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
 
-alter table public.match_records enable row level security;
+revoke all on public.approved_tutor_cards from anon;
+grant select on public.approved_tutor_cards to authenticated;
 
-drop policy if exists "match_records_select_related" on public.match_records;
-create policy "match_records_select_related"
-on public.match_records for select
-to authenticated
-using (auth.uid() = parent_id or auth.uid() = tutor_id);
+create or replace function public.enforce_tutor_profile_security()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.role() <> 'authenticated' then
+    return new;
+  end if;
 
-drop policy if exists "match_records_insert_parent" on public.match_records;
-create policy "match_records_insert_parent"
-on public.match_records for insert
-to authenticated
-with check (
-  auth.uid() = parent_id
-  and exists (
-    select 1
-    from public.parent_requests pr
-    where pr.id = request_id
-      and pr.user_id = auth.uid()
-  )
-);
+  if new.user_id <> auth.uid() then
+    raise exception 'tutor profile owner cannot be changed';
+  end if;
 
-drop policy if exists "match_records_insert_tutor" on public.match_records;
-create policy "match_records_insert_tutor"
-on public.match_records for insert
-to authenticated
-with check (
-  auth.uid() = tutor_id
-  and exists (
-    select 1
-    from public.parent_requests pr
-    where pr.id = request_id
-      and pr.user_id = parent_id
-  )
-  and exists (
-    select 1
-    from public.profiles p
-    where p.id = auth.uid()
-      and p.role = 'tutor'::public.user_role
-  )
-);
+  if tg_op = 'INSERT' and new.status <> 'pending' then
+    raise exception 'new tutor profiles must be pending';
+  end if;
 
-drop policy if exists "match_records_update_related" on public.match_records;
-create policy "match_records_update_related"
-on public.match_records for update
-to authenticated
-using (auth.uid() = parent_id or auth.uid() = tutor_id)
-with check (auth.uid() = parent_id or auth.uid() = tutor_id);
+  if tg_op = 'UPDATE'
+     and new.status is distinct from old.status
+     and new.status <> 'pending' then
+    raise exception 'review status can only be changed by the review service';
+  end if;
 
+  if new.verification_image_path is not null
+     and split_part(new.verification_image_path, '/', 1) <> auth.uid()::text then
+    raise exception 'verification file must belong to the tutor';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists tutor_profiles_enforce_security on public.tutor_profiles;
+create trigger tutor_profiles_enforce_security
+before insert or update on public.tutor_profiles
+for each row execute function public.enforce_tutor_profile_security();
+
+-- Parent requests: parents read their own rows; tutors use the role-scoped policy.
+drop policy if exists "parent_requests_select_authenticated" on public.parent_requests;
+
+-- Match records: a participant can only set fields owned by that participant.
+-- Derived match status and contact_unlocked_at remain controlled by the sync trigger.
 create or replace function public.enforce_match_record_security()
 returns trigger
 language plpgsql
@@ -238,22 +219,15 @@ create trigger match_records_enforce_actor_fields
 before insert or update on public.match_records
 for each row execute function public.enforce_match_record_security();
 
-grant select, insert, update on public.match_records to authenticated;
-grant usage, select on sequence public.match_records_id_seq to authenticated;
+-- Verification documents are private. Owners retain access; the authorized
+-- review page uses the service role to create five-minute signed URLs.
+update storage.buckets
+set public = false,
+    file_size_limit = 5242880,
+    allowed_mime_types = array['application/pdf']::text[]
+where id in ('tutor-verifications', 'match-verifications');
 
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'match-verifications',
-  'match-verifications',
-  false,
-  5242880,
-  array['application/pdf']::text[]
-)
-on conflict (id) do update
-set name = excluded.name,
-    public = excluded.public,
-    file_size_limit = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "tutor_verifications_public_read" on storage.objects;
 
 drop policy if exists "match_verifications_select_related" on storage.objects;
 create policy "match_verifications_select_related"
@@ -326,3 +300,5 @@ using (
       and name = auth.uid()::text || '/match-' || mr.id::text || '-verification'
   )
 );
+
+commit;

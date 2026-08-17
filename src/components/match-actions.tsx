@@ -206,23 +206,20 @@ export function MatchActions({
         throw new Error("缺少有效的需求帖。");
       }
 
+      const actorFields = isParent
+        ? {
+            parent_interested: true,
+            parent_interest_at: new Date().toISOString(),
+          }
+        : {
+            tutor_interested: true,
+            tutor_interest_at: new Date().toISOString(),
+          };
       const nextMatch = await upsertMatchRecord({
         request_id: nextRequestId,
         parent_id: isParent ? user.id : requestOwnerId,
         tutor_id: tutorId,
-        parent_interested: isParent
-          ? true
-          : (match?.parent_interested ?? false),
-        tutor_interested: isTutor ? true : (match?.tutor_interested ?? false),
-        parent_interest_at: isParent
-          ? new Date().toISOString()
-          : (match?.parent_interest_at ?? null),
-        tutor_interest_at: isTutor
-          ? new Date().toISOString()
-          : (match?.tutor_interest_at ?? null),
-        rejected_by: null,
-        reject_reason: null,
-        rejected_at: null,
+        ...actorFields,
       });
 
       setMatch(nextMatch);
@@ -494,8 +491,7 @@ export function MatchActions({
             联系人：{formatName(counterpartProfile?.fullName)}
           </p>
           <p>手机号：{counterpartProfile?.phone || "待补充"}</p>
-          <p className="mt-2 text-xs text-emerald-700">
-          </p>
+          <p className="mt-2 text-xs text-emerald-700"></p>
         </div>
       ) : null}
 
@@ -625,8 +621,7 @@ export function MatchActions({
           <Button onClick={handleSubmitReview} type="button" variant="outline">
             提交评价
           </Button>
-          <p className="text-xs text-slate-500">
-          </p>
+          <p className="text-xs text-slate-500"></p>
         </div>
       ) : null}
 

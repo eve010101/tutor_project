@@ -22,10 +22,6 @@ where status is null;
 alter table public.tutor_profiles enable row level security;
 
 drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
-create policy "tutor_profiles_select_authenticated"
-on public.tutor_profiles for select
-to authenticated
-using (auth.uid() is not null);
 
 grant select on public.tutor_profiles to authenticated;
 
@@ -72,7 +68,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'tutor-verifications',
   'tutor-verifications',
-  true,
+  false,
   5242880,
   array['application/pdf']::text[]
 )
@@ -83,9 +79,6 @@ set name = excluded.name,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "tutor_verifications_public_read" on storage.objects;
-create policy "tutor_verifications_public_read"
-on storage.objects for select
-using (bucket_id = 'tutor-verifications');
 
 drop policy if exists "profile_avatars_public_read" on storage.objects;
 create policy "profile_avatars_public_read"

@@ -4,7 +4,10 @@ import { TutorDetail } from "@/components/tutor-detail";
 import { getCurrentUserProfile } from "@/lib/auth";
 import type { MatchRecord, ParentSelectableRequest } from "@/lib/matchmaking";
 import { getUnlockedCounterpartContact } from "@/lib/match-contact";
-import { normalizeParentRequest, type ParentRequestRecord } from "@/lib/parent-request";
+import {
+  normalizeParentRequest,
+  type ParentRequestRecord,
+} from "@/lib/parent-request";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import { fetchSupabaseWithFallback } from "@/lib/supabase/query-with-fallback";
@@ -31,7 +34,8 @@ const developmentTutor: TutorCard = {
   available_time_note: "Wednesday 7-9pm and weekend afternoons are preferred.",
   weekly_capacity: 3,
   tagline: "Patient, structured tutoring for middle-school students.",
-  intro: "I focus on building a clear foundation and helping students form effective study habits.",
+  intro:
+    "I focus on building a clear foundation and helping students form effective study habits.",
   order_status: "接单中",
 };
 
@@ -76,16 +80,13 @@ export default async function TutorDetailPage({
   }
 
   const tutor = data as TutorCard;
-  const tutorProfileResult = await supabase
-    .from("tutor_profiles")
-    .select("status")
-    .eq("user_id", id)
-    .maybeSingle();
-  const { data: tutorProfile } = logSupabaseQuery("tutor review status", tutorProfileResult);
 
   let parentRequests: ParentSelectableRequest[] = [];
   let existingMatch: MatchRecord | null = null;
-  let counterpartProfile: { fullName?: string | null; phone?: string | null } | null = null;
+  let counterpartProfile: {
+    fullName?: string | null;
+    phone?: string | null;
+  } | null = null;
 
   if (user && profile?.role === "parent") {
     const requestResult = await supabase
@@ -93,21 +94,26 @@ export default async function TutorDetailPage({
       .select("id, subject, grade, area, status")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    const { data: requestRows } = logSupabaseQuery("parent selectable requests", requestResult);
+    const { data: requestRows } = logSupabaseQuery(
+      "parent selectable requests",
+      requestResult,
+    );
 
-    parentRequests = ((requestRows ?? []) as ParentRequestRecord[]).map((row) => {
-      const request = normalizeParentRequest(row);
+    parentRequests = ((requestRows ?? []) as ParentRequestRecord[]).map(
+      (row) => {
+        const request = normalizeParentRequest(row);
 
-      return {
-        id: request.id,
-        subject: request.subject,
-        subjects: request.subjects,
-        grade: request.grade,
-        grades: request.grades,
-        area: request.area,
-        status: request.status,
-      };
-    });
+        return {
+          id: request.id,
+          subject: request.subject,
+          subjects: request.subjects,
+          grade: request.grade,
+          grades: request.grades,
+          area: request.area,
+          status: request.status,
+        };
+      },
+    );
 
     if (parentRequests.length) {
       const requestIds = parentRequests.map((item) => item.id);
@@ -119,7 +125,10 @@ export default async function TutorDetailPage({
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const { data: matchData } = logSupabaseQuery("existing tutor match", matchResult);
+      const { data: matchData } = logSupabaseQuery(
+        "existing tutor match",
+        matchResult,
+      );
 
       existingMatch = (matchData as MatchRecord | null) ?? null;
 
@@ -137,7 +146,7 @@ export default async function TutorDetailPage({
       existingMatch={existingMatch}
       parentRequests={parentRequests}
       tutor={tutor}
-      tutorReviewStatus={tutorProfile?.status ?? null}
+      tutorReviewStatus="approved"
       viewerRole={profile?.role ?? null}
     />
   );

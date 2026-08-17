@@ -79,7 +79,3 @@ with check (auth.uid() = user_id);
 grant select, insert, update on public.parent_requests to authenticated;
 
 drop policy if exists "parent_requests_select_authenticated" on public.parent_requests;
-create policy "parent_requests_select_authenticated"
-on public.parent_requests for select
-to authenticated
-using (auth.uid() is not null);

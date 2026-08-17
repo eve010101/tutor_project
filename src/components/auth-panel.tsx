@@ -2,17 +2,15 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  ArrowRight,
-  KeyRound,
-  Smartphone,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, KeyRound, Smartphone } from "lucide-react";
 
-import { getAuthEmailFromPhone, isSupportedPhone, normalizePhone } from "@/lib/auth-identity";
+import {
+  getAuthEmailFromPhone,
+  isSupportedPhone,
+  normalizePhone,
+} from "@/lib/auth-identity";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
-import { markRegistrationOnboardingPending } from "@/lib/registration-onboarding";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/auth";
 import { ValuePropositionCard } from "@/components/value-proposition-card";
@@ -31,8 +29,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 type AuthMode = "login" | "register" | "reset";
 type NoticeTone = "idle" | "error" | "success";
 
-function getRolePath(role?: string | null) {
-  return role === "parent" ? "/parent/profile" : "/tutor/profile";
+function getRegistrationPath(role?: string | null) {
+  return role === "parent" ? "/parent/request" : "/tutor/profile";
 }
 
 function getLoginPath(role?: string | null) {
@@ -142,7 +140,7 @@ export function AuthPanel() {
       }
 
       const email = getAuthEmailFromPhone(phone);
-      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password: registerPassword,
       });
@@ -165,8 +163,7 @@ export function AuthPanel() {
 
       setFeedback("success", "注册成功，正在跳转...");
       setBusy(false);
-      markRegistrationOnboardingPending(signInData.user.id, registerRole);
-      router.replace(getLoginPath(registerRole));
+      router.replace(getRegistrationPath(registerRole));
       router.refresh();
     } catch (error) {
       console.error("[register] unexpected client error", error);
@@ -211,73 +208,23 @@ export function AuthPanel() {
       .maybeSingle();
     const { data: profile, error: profileError } = logSupabaseQuery(
       "login role profile",
-      profileResult
+      profileResult,
     );
 
     if (profileError) {
-      setFeedback("error", `登录成功，但读取用户角色失败：${profileError.message}`);
+      setFeedback(
+        "error",
+        `登录成功，但读取用户角色失败：${profileError.message}`,
+      );
       setBusy(false);
       return;
     }
 
     setFeedback("success", "登录成功，正在跳转...");
     setBusy(false);
-    router.replace(getLoginPath(profile?.role ?? (data.user.user_metadata?.role as string)));
-    router.refresh();
-  }
-
-  async function handleResetPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const phone = normalizePhone(resetPhone);
-    if (!isSupportedPhone(phone)) {
-      setFeedback("error", "请输入中国大陆手机号，例如 13800000000");
-      return;
-    }
-
-    if (resetPassword.length < 6) {
-      setFeedback("error", "新密码至少需要 6 位");
-      return;
-    }
-
-    setBusy(true);
-    setFeedback("idle", "");
-
-    const response = await fetch("/api/auth/dev-reset-password", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone,
-        password: resetPassword,
-      }),
-    });
-
-    const result = (await response.json()) as { error?: string; role?: string };
-
-    if (!response.ok) {
-      setFeedback("error", result.error ?? "重置失败");
-      setBusy(false);
-      return;
-    }
-
-    const email = getAuthEmailFromPhone(phone);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: resetPassword,
-    });
-
-    if (error) {
-      setFeedback("success", "密码已重置，请返回登录页测试");
-      setMode("login");
-      setBusy(false);
-      return;
-    }
-
-    setFeedback("success", "密码已重置，正在跳转...");
-    setBusy(false);
-    router.replace(getRolePath(result.role));
+    router.replace(
+      getLoginPath(profile?.role ?? (data.user.user_metadata?.role as string)),
+    );
     router.refresh();
   }
 
@@ -299,17 +246,18 @@ export function AuthPanel() {
             手机号登录
           </div>
           <CardTitle className="text-2xl">注册 / 登录</CardTitle>
-          <CardDescription>
-          </CardDescription>
+          <CardDescription></CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-5">
           <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1">
-            {([
-              ["login", "登录"],
-              ["register", "注册"],
-              ["reset", "重置密码"],
-            ] as const).map(([key, label]) => (
+            {(
+              [
+                ["login", "登录"],
+                ["register", "注册"],
+                ["reset", "重置密码"],
+              ] as const
+            ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
@@ -321,7 +269,7 @@ export function AuthPanel() {
                   "rounded-xl px-3 py-2 text-sm font-medium transition",
                   mode === key
                     ? "bg-white text-slate-950 shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
+                    : "text-slate-500 hover:text-slate-900",
                 )}
               >
                 {label}
@@ -333,7 +281,7 @@ export function AuthPanel() {
             <div
               className={cn(
                 "flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm",
-                noticeClass
+                noticeClass,
               )}
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -408,9 +356,13 @@ export function AuthPanel() {
                       className="flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm hover:bg-slate-50"
                     >
                       <div>
-                        <div className="font-medium text-slate-950">{label}</div>
+                        <div className="font-medium text-slate-950">
+                          {label}
+                        </div>
                         <div className="text-xs text-slate-500">
-                          {value === "tutor" ? "注册后完善教学资料" : "注册后发布家教需求"}
+                          {value === "tutor"
+                            ? "注册后完善教学资料"
+                            : "注册后发布家教需求"}
                         </div>
                       </div>
                       <RadioGroupItem value={value} />
@@ -426,7 +378,7 @@ export function AuthPanel() {
           ) : null}
 
           {mode === "reset" ? (
-            <form className="space-y-4" onSubmit={handleResetPassword}>
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reset-phone">手机号</Label>
                 <Input
@@ -447,14 +399,19 @@ export function AuthPanel() {
                   onChange={(event) => setResetPassword(event.target.value)}
                 />
               </div>
-              <Button className="w-full" disabled={busy} type="submit" variant="outline">
-                重置密码
+              <Button
+                className="w-full"
+                disabled
+                type="button"
+                variant="outline"
+              >
+                短信验证码找回即将上线
                 <KeyRound className="h-4 w-4" />
               </Button>
               <p className="text-xs leading-6 text-slate-500">
-                当前“重置密码”仅用于本地开发测试。生产环境仍应接入短信验证码或正式找回密码流程。
+                为保护账号安全，未验证手机号前不允许重置密码。
               </p>
-            </form>
+            </div>
           ) : null}
 
           <p className="text-xs leading-6 text-slate-500">

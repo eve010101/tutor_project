@@ -2,7 +2,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'tutor-verifications',
   'tutor-verifications',
-  true,
+  false,
   5242880,
   array['application/pdf']::text[]
 )
@@ -13,6 +13,3 @@ set name = excluded.name,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "tutor_verifications_public_read" on storage.objects;
-create policy "tutor_verifications_public_read"
-on storage.objects for select
-using (bucket_id = 'tutor-verifications');

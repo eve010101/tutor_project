@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 
+import { updateTutorReviewStatus } from "@/app/admin/reviews/actions";
+import { isAdminReviewer } from "@/lib/admin-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getTutorReviewStatusMeta,
   normalizeTutorReviewStatus,
@@ -13,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type TutorProfileReviewRow = {
   user_id: string;
@@ -98,7 +102,7 @@ function extractStoragePath(bucket: string, pathOrUrl?: string | null) {
   return null;
 }
 
-function getPublicFileUrl(
+async function getSignedFileUrl(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   bucket: string,
   pathOrUrl?: string | null,
@@ -106,11 +110,21 @@ function getPublicFileUrl(
   const storagePath = extractStoragePath(bucket, pathOrUrl);
 
   if (!storagePath) {
-    return /^https?:\/\//i.test(pathOrUrl ?? "") ? pathOrUrl! : null;
+    return null;
   }
 
-  const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-  return data.publicUrl;
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, 30 * 60);
+
+  if (error) {
+    console.error("[admin review] failed to sign verification file", {
+      code: error.name,
+    });
+    return null;
+  }
+
+  return data.signedUrl;
 }
 
 function joinValues(values?: string[] | null, fallback = "暂无填写") {
@@ -118,7 +132,38 @@ function joinValues(values?: string[] | null, fallback = "暂无填写") {
 }
 
 export default async function AdminReviewsPage() {
-  if (process.env.NODE_ENV !== "development") {
+  const sessionSupabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await sessionSupabase.auth.getUser();
+
+  if (!isAdminReviewer(user?.id)) {
+    if (process.env.NODE_ENV === "development" && user?.id) {
+      return (
+        <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl">
+            <Card className="border-amber-200 bg-amber-50/80">
+              <CardHeader>
+                <CardTitle>当前账号尚未配置为审核管理员</CardTitle>
+                <CardDescription>
+                  将下面的 UUID 加入 `.env.local` 的
+                  `ADMIN_REVIEWER_USER_IDS`，然后重启开发服务器。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-amber-900">
+                <code className="block break-all rounded-xl bg-white px-4 py-3">
+                  {user.id}
+                </code>
+                <code className="block break-all rounded-xl bg-white px-4 py-3">
+                  ADMIN_REVIEWER_USER_IDS={user.id}
+                </code>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      );
+    }
+
     notFound();
   }
 
@@ -205,44 +250,46 @@ export default async function AdminReviewsPage() {
     ((profileRows ?? []) as ProfileRow[]).map((item) => [item.id, item]),
   );
 
-  const items: ReviewItem[] = reviews
-    .map((review) => {
-      const profile = profileMap.get(review.user_id);
+  const items: ReviewItem[] = (
+    await Promise.all(
+      reviews.map(async (review) => {
+        const profile = profileMap.get(review.user_id);
 
-      return {
-        ...review,
-        fullName: profile?.full_name?.trim() || "未填写姓名",
-        phone: profile?.phone?.trim() || "未绑定手机号",
-        verificationPdfUrl: getPublicFileUrl(
-          supabase,
-          "tutor-verifications",
-          review.verification_image_path,
-        ),
-      };
-    })
-    .sort((left, right) => {
-      const leftRank =
-        normalizeTutorReviewStatus(left.status) === "pending"
-          ? 0
-          : normalizeTutorReviewStatus(left.status) === "rejected"
-            ? 1
-            : 2;
-      const rightRank =
-        normalizeTutorReviewStatus(right.status) === "pending"
-          ? 0
-          : normalizeTutorReviewStatus(right.status) === "rejected"
-            ? 1
-            : 2;
+        return {
+          ...review,
+          fullName: profile?.full_name?.trim() || "未填写姓名",
+          phone: profile?.phone?.trim() || "未绑定手机号",
+          verificationPdfUrl: await getSignedFileUrl(
+            supabase,
+            "tutor-verifications",
+            review.verification_image_path,
+          ),
+        };
+      }),
+    )
+  ).sort((left, right) => {
+    const leftRank =
+      normalizeTutorReviewStatus(left.status) === "pending"
+        ? 0
+        : normalizeTutorReviewStatus(left.status) === "rejected"
+          ? 1
+          : 2;
+    const rightRank =
+      normalizeTutorReviewStatus(right.status) === "pending"
+        ? 0
+        : normalizeTutorReviewStatus(right.status) === "rejected"
+          ? 1
+          : 2;
 
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
 
-      return (
-        new Date(right.updated_at ?? right.created_at ?? 0).getTime() -
-        new Date(left.updated_at ?? left.created_at ?? 0).getTime()
-      );
-    });
+    return (
+      new Date(right.updated_at ?? right.created_at ?? 0).getTime() -
+      new Date(left.updated_at ?? left.created_at ?? 0).getTime()
+    );
+  });
 
   const pendingCount = items.filter(
     (item) => normalizeTutorReviewStatus(item.status) === "pending",
@@ -264,8 +311,8 @@ export default async function AdminReviewsPage() {
               家教资料审核列表
             </h1>
             <p className="max-w-3xl text-sm leading-7 text-slate-600">
-              学信网 PDF
-              文件支持在线预览和下载，不显示数据库中的文件路径字符串。
+              学信网 PDF 文件永久保存在私有存储桶。每次管理员打开本页时生成新的
+              30 分钟临时链接，不影响之后继续审核。
             </p>
           </div>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
@@ -401,6 +448,39 @@ export default async function AdminReviewsPage() {
                         ) : null}
                       </div>
                     ) : null}
+
+                    <form
+                      action={updateTutorReviewStatus}
+                      className="flex flex-wrap gap-3 border-t border-slate-100 pt-5"
+                    >
+                      <input name="userId" type="hidden" value={item.user_id} />
+                      <Button
+                        disabled={reviewMeta.value === "approved"}
+                        name="status"
+                        type="submit"
+                        value="approved"
+                      >
+                        审核通过
+                      </Button>
+                      <Button
+                        disabled={reviewMeta.value === "rejected"}
+                        name="status"
+                        type="submit"
+                        value="rejected"
+                        variant="destructive"
+                      >
+                        审核不通过
+                      </Button>
+                      <Button
+                        disabled={reviewMeta.value === "pending"}
+                        name="status"
+                        type="submit"
+                        value="pending"
+                        variant="outline"
+                      >
+                        重新设为待审核
+                      </Button>
+                    </form>
                   </CardContent>
                 </Card>
               );

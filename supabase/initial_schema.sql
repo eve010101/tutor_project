@@ -148,10 +148,6 @@ on public.tutor_profiles for select
 using (auth.uid() = user_id);
 
 drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
-create policy "tutor_profiles_select_authenticated"
-on public.tutor_profiles for select
-to authenticated
-using (auth.uid() is not null);
 
 drop policy if exists "tutor_profiles_insert_own" on public.tutor_profiles;
 create policy "tutor_profiles_insert_own"
@@ -183,10 +179,6 @@ using (
 );
 
 drop policy if exists "parent_requests_select_authenticated" on public.parent_requests;
-create policy "parent_requests_select_authenticated"
-on public.parent_requests for select
-to authenticated
-using (auth.uid() is not null);
 
 drop policy if exists "parent_requests_insert_own" on public.parent_requests;
 create policy "parent_requests_insert_own"
@@ -199,8 +191,70 @@ on public.parent_requests for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+create or replace function public.enforce_profile_identity_security()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.role() = 'authenticated' and (
+    new.id is distinct from old.id
+    or new.phone is distinct from old.phone
+    or new.role is distinct from old.role
+  ) then
+    raise exception 'profile identity fields cannot be changed';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_enforce_identity_security on public.profiles;
+create trigger profiles_enforce_identity_security
+before update on public.profiles
+for each row execute function public.enforce_profile_identity_security();
+
+create or replace function public.enforce_tutor_profile_security()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.role() <> 'authenticated' then
+    return new;
+  end if;
+
+  if new.user_id <> auth.uid() then
+    raise exception 'tutor profile owner cannot be changed';
+  end if;
+
+  if tg_op = 'INSERT' and new.status <> 'pending' then
+    raise exception 'new tutor profiles must be pending';
+  end if;
+
+  if tg_op = 'UPDATE'
+     and new.status is distinct from old.status
+     and new.status <> 'pending' then
+    raise exception 'review status can only be changed by the review service';
+  end if;
+
+  if new.verification_image_path is not null
+     and split_part(new.verification_image_path, '/', 1) <> auth.uid()::text then
+    raise exception 'verification file must belong to the tutor';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists tutor_profiles_enforce_security on public.tutor_profiles;
+create trigger tutor_profiles_enforce_security
+before insert or update on public.tutor_profiles
+for each row execute function public.enforce_tutor_profile_security();
+
 grant usage on schema public to anon, authenticated;
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to authenticated;
+grant update (full_name, city, bio, avatar_url) on public.profiles to authenticated;
 grant select, insert, update on public.tutor_profiles to authenticated;
 grant select, insert, update on public.parent_requests to authenticated;
 grant usage, select on sequence public.parent_requests_id_seq to authenticated;
@@ -248,7 +302,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'tutor-verifications',
   'tutor-verifications',
-  true,
+  false,
   5242880,
   array['application/pdf']::text[]
 )
@@ -259,9 +313,6 @@ set name = excluded.name,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "tutor_verifications_public_read" on storage.objects;
-create policy "tutor_verifications_public_read"
-on storage.objects for select
-using (bucket_id = 'tutor-verifications');
 
 drop policy if exists "profile_avatars_public_read" on storage.objects;
 create policy "profile_avatars_public_read"
