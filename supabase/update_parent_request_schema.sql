@@ -73,8 +73,37 @@ using (
 drop policy if exists "parent_requests_update_own" on public.parent_requests;
 create policy "parent_requests_update_own"
 on public.parent_requests for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+)
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+);
+
+drop policy if exists "parent_requests_insert_own" on public.parent_requests;
+create policy "parent_requests_insert_own"
+on public.parent_requests for insert
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+);
 
 grant select, insert, update on public.parent_requests to authenticated;
 

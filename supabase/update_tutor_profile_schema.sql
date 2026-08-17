@@ -23,6 +23,41 @@ alter table public.tutor_profiles enable row level security;
 
 drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_profiles;
 
+drop policy if exists "tutor_profiles_insert_own" on public.tutor_profiles;
+create policy "tutor_profiles_insert_own"
+on public.tutor_profiles for insert
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+);
+
+drop policy if exists "tutor_profiles_update_own" on public.tutor_profiles;
+create policy "tutor_profiles_update_own"
+on public.tutor_profiles for update
+using (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+)
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+);
+
 grant select on public.tutor_profiles to authenticated;
 
 create or replace view public.approved_tutor_cards as

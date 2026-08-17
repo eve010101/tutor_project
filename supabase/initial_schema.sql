@@ -152,13 +152,37 @@ drop policy if exists "tutor_profiles_select_authenticated" on public.tutor_prof
 drop policy if exists "tutor_profiles_insert_own" on public.tutor_profiles;
 create policy "tutor_profiles_insert_own"
 on public.tutor_profiles for insert
-with check (auth.uid() = user_id);
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+);
 
 drop policy if exists "tutor_profiles_update_own" on public.tutor_profiles;
 create policy "tutor_profiles_update_own"
 on public.tutor_profiles for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+)
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'tutor'::public.user_role
+  )
+);
 
 drop policy if exists "parent_requests_select_own" on public.parent_requests;
 create policy "parent_requests_select_own"
@@ -183,13 +207,37 @@ drop policy if exists "parent_requests_select_authenticated" on public.parent_re
 drop policy if exists "parent_requests_insert_own" on public.parent_requests;
 create policy "parent_requests_insert_own"
 on public.parent_requests for insert
-with check (auth.uid() = user_id);
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+);
 
 drop policy if exists "parent_requests_update_own" on public.parent_requests;
 create policy "parent_requests_update_own"
 on public.parent_requests for update
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+)
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'parent'::public.user_role
+  )
+);
 
 create or replace function public.enforce_profile_identity_security()
 returns trigger
