@@ -29,9 +29,9 @@ interface ParentRequestManagerProps {
 }
 
 type RequestDraft = {
-  subject: string;
-  serviceType: string;
-  grade: string;
+  subjects: string[];
+  serviceTypes: string[];
+  grades: string[];
   city: string;
   area: string;
   budgetHourly: string;
@@ -57,9 +57,9 @@ function createDraft(record: ParentRequestRecord): RequestDraft {
   const request = normalizeParentRequest(record);
 
   return {
-    subject: request.subject,
-    serviceType: request.serviceType,
-    grade: request.grade,
+    subjects: request.subjects,
+    serviceTypes: request.serviceTypes,
+    grades: request.grades,
     city: request.city,
     area: request.area,
     budgetHourly: request.budgetHourly ? String(request.budgetHourly) : "",
@@ -76,9 +76,9 @@ function validateDraft(draft: RequestDraft) {
   const budgetHourly = Number(draft.budgetHourly);
   const weeklySessionCount = Number(draft.weeklySessionCount);
 
-  if (!draft.subject) return "请选择科目。";
-  if (!draft.serviceType) return "请选择服务类型。";
-  if (!draft.grade) return "请选择孩子年级。";
+  if (!draft.subjects.length) return "请至少选择一个科目。";
+  if (!draft.serviceTypes.length) return "请至少选择一种服务类型。";
+  if (!draft.grades.length) return "请至少选择一个孩子年级。";
   if (!draft.area) return "请选择所在区域。";
   if (!Number.isFinite(budgetHourly) || budgetHourly <= 0) return "请填写正确的每小时预算。";
   if (!draft.studySituation.trim()) return "请填写孩子学习情况和目标。";
@@ -122,6 +122,39 @@ function SelectField({
   );
 }
 
+function SelectionButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition-colors",
+        active
+          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <span>{label}</span>
+      <span
+        className={cn(
+          "flex h-5 w-5 items-center justify-center rounded-full border",
+          active ? "border-white/30 bg-white/15" : "border-slate-200 bg-slate-100"
+        )}
+      >
+        {active ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+      </span>
+    </button>
+  );
+}
+
 export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [items, setItems] = useState(() => sortParentRequests(requests));
@@ -155,6 +188,22 @@ export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
         : [...current.preferredTimeSlots, value];
 
       return { ...current, preferredTimeSlots };
+    });
+  }
+
+  function toggleDraftMultiValue(
+    key: "subjects" | "serviceTypes" | "grades",
+    value: string
+  ) {
+    setDraft((current) => {
+      if (!current) return current;
+
+      const currentValues = current[key];
+      const nextValues = currentValues.includes(value)
+        ? currentValues.filter((item) => item !== value)
+        : [...currentValues, value];
+
+      return { ...current, [key]: nextValues };
     });
   }
 
@@ -229,9 +278,9 @@ export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
     const { data, error } = await supabase
       .from("parent_requests")
       .update({
-        subject: draft.subject,
-        service_type: draft.serviceType,
-        grade: draft.grade,
+        subject: draft.subjects.join(" / "),
+        service_type: draft.serviceTypes.join(" / "),
+        grade: draft.grades.join(" / "),
         city: draft.city.trim() || "北京",
         area: draft.area,
         budget_hourly: budgetHourly,
@@ -316,10 +365,46 @@ export function ParentRequestManager({ requests }: ParentRequestManagerProps) {
                     </span>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <SelectField id={`subject-${record.id}`} label="科目" options={PARENT_REQUEST_SUBJECT_OPTIONS} value={draft.subject} onChange={(value) => setDraftField("subject", value)} />
-                    <SelectField id={`service-type-${record.id}`} label="服务类型" options={PARENT_REQUEST_SERVICE_TYPE_OPTIONS} value={draft.serviceType} onChange={(value) => setDraftField("serviceType", value)} />
-                    <SelectField id={`grade-${record.id}`} label="孩子年级" options={PARENT_REQUEST_GRADE_OPTIONS} value={draft.grade} onChange={(value) => setDraftField("grade", value)} />
+                  <div className="space-y-3">
+                    <Label>科目</Label>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {PARENT_REQUEST_SUBJECT_OPTIONS.map((option) => (
+                        <SelectionButton
+                          active={draft.subjects.includes(option)}
+                          key={option}
+                          label={option}
+                          onClick={() => toggleDraftMultiValue("subjects", option)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>服务类型</Label>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {PARENT_REQUEST_SERVICE_TYPE_OPTIONS.map((option) => (
+                        <SelectionButton
+                          active={draft.serviceTypes.includes(option)}
+                          key={option}
+                          label={option}
+                          onClick={() => toggleDraftMultiValue("serviceTypes", option)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>孩子年级</Label>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {PARENT_REQUEST_GRADE_OPTIONS.map((option) => (
+                        <SelectionButton
+                          active={draft.grades.includes(option)}
+                          key={option}
+                          label={option}
+                          onClick={() => toggleDraftMultiValue("grades", option)}
+                        />
+                      ))}
+                    </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-4">

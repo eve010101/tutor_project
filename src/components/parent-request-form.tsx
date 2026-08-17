@@ -32,9 +32,9 @@ interface ParentRequestFormProps {
 }
 
 type ParentRequestFormState = {
-  subject: string;
-  serviceType: string;
-  grade: string;
+  subjects: string[];
+  serviceTypes: string[];
+  grades: string[];
   area: string;
   budgetHourly: string;
   studySituation: string;
@@ -54,9 +54,9 @@ type SaveMessage =
   | null;
 
 const DEFAULT_FORM: ParentRequestFormState = {
-  subject: "",
-  serviceType: "课后辅导",
-  grade: "",
+  subjects: [],
+  serviceTypes: ["课后辅导"],
+  grades: [],
   area: "",
   budgetHourly: "",
   studySituation: "",
@@ -127,6 +127,20 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
     }));
   }
 
+  function toggleMultiValue(key: "subjects" | "serviceTypes" | "grades", value: string) {
+    setForm((current) => {
+      const currentValues = current[key];
+      const nextValues = currentValues.includes(value)
+        ? currentValues.filter((item) => item !== value)
+        : [...currentValues, value];
+
+      return {
+        ...current,
+        [key]: nextValues,
+      };
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -148,20 +162,20 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
     const preferredTimeNote = form.preferredTimeNote.trim();
     const extraNotes = form.extraNotes.trim();
 
-    if (!form.subject) {
-      setMessage({ type: "error", text: "请选择科目。" });
+    if (!form.subjects.length) {
+      setMessage({ type: "error", text: "请至少选择一个科目。" });
       setSaving(false);
       return;
     }
 
-    if (!form.serviceType) {
-      setMessage({ type: "error", text: "请选择服务类型。" });
+    if (!form.serviceTypes.length) {
+      setMessage({ type: "error", text: "请至少选择一种服务类型。" });
       setSaving(false);
       return;
     }
 
-    if (!form.grade) {
-      setMessage({ type: "error", text: "请选择孩子年级。" });
+    if (!form.grades.length) {
+      setMessage({ type: "error", text: "请至少选择一个孩子年级。" });
       setSaving(false);
       return;
     }
@@ -207,9 +221,9 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
 
     const { error } = await supabase.from("parent_requests").insert({
       user_id: user.id,
-      subject: form.subject,
-      service_type: form.serviceType,
-      grade: form.grade,
+      subject: form.subjects.join(" / "),
+      service_type: form.serviceTypes.join(" / "),
+      grade: form.grades.join(" / "),
       city: resolvedCity,
       area: form.area,
       budget_hourly: budgetHourly,
@@ -262,10 +276,10 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {PARENT_REQUEST_SUBJECT_OPTIONS.map((option) => (
                   <SelectionButton
-                    active={form.subject === option}
+                    active={form.subjects.includes(option)}
                     key={option}
                     label={option}
-                    onClick={() => setField("subject", option)}
+                    onClick={() => toggleMultiValue("subjects", option)}
                   />
                 ))}
               </div>
@@ -276,10 +290,10 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
               <div className="grid gap-3 md:grid-cols-3">
                 {PARENT_REQUEST_SERVICE_TYPE_OPTIONS.map((option) => (
                   <SelectionButton
-                    active={form.serviceType === option}
+                    active={form.serviceTypes.includes(option)}
                     key={option}
                     label={option}
-                    onClick={() => setField("serviceType", option)}
+                    onClick={() => toggleMultiValue("serviceTypes", option)}
                   />
                 ))}
               </div>
@@ -290,10 +304,10 @@ export function ParentRequestForm({ city }: ParentRequestFormProps) {
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {PARENT_REQUEST_GRADE_OPTIONS.map((option) => (
                   <SelectionButton
-                    active={form.grade === option}
+                    active={form.grades.includes(option)}
                     key={option}
                     label={option}
-                    onClick={() => setField("grade", option)}
+                    onClick={() => toggleMultiValue("grades", option)}
                   />
                 ))}
               </div>

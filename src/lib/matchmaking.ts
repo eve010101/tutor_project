@@ -52,7 +52,9 @@ export type MatchRecord = {
 export type ParentSelectableRequest = {
   id: number;
   subject: string;
+  subjects?: string[];
   grade: string;
+  grades?: string[];
   area: string;
   status?: string | null;
 };

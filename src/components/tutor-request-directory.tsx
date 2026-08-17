@@ -72,8 +72,11 @@ function requestMatches(record: ParentRequestRecord, filters: Filters, keyword: 
   const normalizedKeyword = keyword.trim().toLowerCase();
   const searchText = [
     request.subject,
+    ...request.subjects,
     request.serviceType,
+    ...request.serviceTypes,
     request.grade,
+    ...request.grades,
     request.city,
     request.area,
     request.studySituation,
@@ -89,9 +92,9 @@ function requestMatches(record: ParentRequestRecord, filters: Filters, keyword: 
 
   return (
     (!normalizedKeyword || searchText.includes(normalizedKeyword)) &&
-    (!filters.subject || request.subject === filters.subject) &&
-    (!filters.grade || request.grade === filters.grade) &&
-    (!filters.service || request.serviceType === filters.service) &&
+    (!filters.subject || request.subjects.includes(filters.subject)) &&
+    (!filters.grade || request.grades.includes(filters.grade)) &&
+    (!filters.service || request.serviceTypes.includes(filters.service)) &&
     (!filters.area || request.area === filters.area) &&
     (!filters.status || request.status === filters.status) &&
     matchesBudget(request.budgetHourly, filters.budget)

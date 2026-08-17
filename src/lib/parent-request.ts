@@ -59,8 +59,11 @@ export type ParentRequestRecord = {
 export type NormalizedParentRequest = {
   id: number;
   subject: string;
+  subjects: string[];
   serviceType: string;
+  serviceTypes: string[];
   grade: string;
+  grades: string[];
   city: string;
   area: string;
   budgetHourly: number | null;
@@ -75,6 +78,8 @@ export type NormalizedParentRequest = {
 };
 
 const serviceTypeOptionSet = new Set<string>(PARENT_REQUEST_SERVICE_TYPE_OPTIONS);
+const subjectOptionSet = new Set<string>(PARENT_REQUEST_SUBJECT_OPTIONS);
+const gradeOptionSet = new Set<string>(PARENT_REQUEST_GRADE_OPTIONS);
 const lessonDurationOptionSet = new Set<string>(PARENT_REQUEST_LESSON_DURATION_OPTIONS);
 const timeOptionSet = new Set<string>(PARENT_REQUEST_TIME_OPTIONS);
 
@@ -84,6 +89,17 @@ function normalizeItems(values: string[]) {
 
 function filterByOptionSet(values: string[], options: ReadonlySet<string>) {
   return normalizeItems(values).filter((item) => options.has(item));
+}
+
+function splitJoinedValue(value?: string | null) {
+  return normalizeItems((value ?? "").split(/\s+\/\s+|[、，,;；\n]+/));
+}
+
+function normalizeMultiOptionValue(value: string | null | undefined, optionSet: ReadonlySet<string>) {
+  const rawValues = splitJoinedValue(value);
+  const optionValues = filterByOptionSet(rawValues, optionSet);
+
+  return optionValues.length ? optionValues : rawValues;
 }
 
 export function normalizeParentRequestStatus(value?: string | null): ParentRequestStatus {
@@ -139,18 +155,22 @@ export function normalizeParentRequestTimeSlots(
 }
 
 export function normalizeParentRequest(record: ParentRequestRecord): NormalizedParentRequest {
-  const serviceType = serviceTypeOptionSet.has(record.service_type ?? "")
-    ? (record.service_type as string)
-    : "课后辅导";
+  const subjects = normalizeMultiOptionValue(record.subject, subjectOptionSet);
+  const serviceTypes = normalizeMultiOptionValue(record.service_type, serviceTypeOptionSet);
+  const grades = normalizeMultiOptionValue(record.grade, gradeOptionSet);
+  const normalizedServiceTypes = serviceTypes.length ? serviceTypes : ["课后辅导"];
   const lessonDuration = lessonDurationOptionSet.has(record.lesson_duration ?? "")
     ? (record.lesson_duration as string)
     : "";
 
   return {
     id: record.id,
-    subject: record.subject,
-    serviceType,
-    grade: record.grade,
+    subject: subjects.join(" / ") || record.subject,
+    subjects,
+    serviceType: normalizedServiceTypes.join(" / "),
+    serviceTypes: normalizedServiceTypes,
+    grade: grades.join(" / ") || record.grade,
+    grades,
     city: record.city?.trim() || "北京",
     area: record.area,
     budgetHourly: record.budget_hourly ?? record.budget_max ?? record.budget_min ?? null,

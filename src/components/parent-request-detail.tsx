@@ -55,6 +55,7 @@ export function ParentRequestDetail({
             <dl>
               <DetailRow label="年级">{request.grade}</DetailRow>
               <DetailRow label="科目">{request.subject}</DetailRow>
+              <DetailRow label="服务类型">{request.serviceType}</DetailRow>
               <DetailRow label="地区">
                 <span className="inline-flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-sky-700" />

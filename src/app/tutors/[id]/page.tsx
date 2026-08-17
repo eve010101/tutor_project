@@ -4,6 +4,7 @@ import { TutorDetail } from "@/components/tutor-detail";
 import { getCurrentUserProfile } from "@/lib/auth";
 import type { MatchRecord, ParentSelectableRequest } from "@/lib/matchmaking";
 import { getUnlockedCounterpartContact } from "@/lib/match-contact";
+import { normalizeParentRequest, type ParentRequestRecord } from "@/lib/parent-request";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
 import { fetchSupabaseWithFallback } from "@/lib/supabase/query-with-fallback";
@@ -94,7 +95,19 @@ export default async function TutorDetailPage({
       .order("created_at", { ascending: false });
     const { data: requestRows } = logSupabaseQuery("parent selectable requests", requestResult);
 
-    parentRequests = (requestRows ?? []) as ParentSelectableRequest[];
+    parentRequests = ((requestRows ?? []) as ParentRequestRecord[]).map((row) => {
+      const request = normalizeParentRequest(row);
+
+      return {
+        id: request.id,
+        subject: request.subject,
+        subjects: request.subjects,
+        grade: request.grade,
+        grades: request.grades,
+        area: request.area,
+        status: request.status,
+      };
+    });
 
     if (parentRequests.length) {
       const requestIds = parentRequests.map((item) => item.id);

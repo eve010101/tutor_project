@@ -68,6 +68,7 @@ export function ParentRequestList({
               <CardContent className="grid gap-3 sm:grid-cols-2">
                 <RequestMeta label="年级" value={request.grade} />
                 <RequestMeta label="科目" value={request.subject} />
+                <RequestMeta label="服务类型" value={request.serviceType} />
                 <RequestMeta label="地区" value={`${request.city} ${request.area}`} />
                 <RequestMeta label="预算" value={budgetSummary} />
                 <RequestMeta label="上课时间" value={timeSummary || "暂无上课时间"} />
