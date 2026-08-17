@@ -19,6 +19,7 @@ import {
   TUTOR_SUBJECT_OPTIONS,
 } from "@/lib/tutor-profile-options";
 import { cn } from "@/lib/utils";
+import { RegistrationOnboardingBanner } from "@/components/registration-onboarding-banner";
 
 export type TutorCard = {
   user_id: string;
@@ -160,6 +161,7 @@ export function TutorDirectory({ tutors, loadError }: { tutors: TutorCard[]; loa
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-7 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
+        <RegistrationOnboardingBanner className="mb-6" role="parent" />
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div><p className="text-sm font-medium text-sky-700">家长找家教</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">找到适合孩子的老师</h1><p className="mt-2 text-sm text-slate-500">全部老师均已完成平台认证</p></div>
           <p className="text-sm text-slate-500">共 <span className="font-semibold text-slate-900">{tutors.length}</span> 位认证家教</p>
