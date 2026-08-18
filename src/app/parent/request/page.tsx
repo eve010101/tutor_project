@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { ParentRequestForm } from "@/components/parent-request-form";
+import { RegistrationOnboardingBanner } from "@/components/registration-onboarding-banner";
 
 export default async function ParentRequestPage() {
   const { profile } = await requireRole("parent");
@@ -11,6 +12,7 @@ export default async function ParentRequestPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.12),_transparent_30%),linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
+        <RegistrationOnboardingBanner role="parent" />
         <section className="rounded-[32px] border border-sky-100 bg-white/90 p-6 shadow-sm backdrop-blur sm:p-8">
           <p className="text-sm font-medium tracking-wide text-sky-700">家长端</p>
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

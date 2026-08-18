@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth-identity";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
+import { markRegistrationOnboardingPending } from "@/lib/registration-onboarding";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/auth";
 import { ValuePropositionCard } from "@/components/value-proposition-card";
@@ -140,7 +141,7 @@ export function AuthPanel() {
       }
 
       const email = getAuthEmailFromPhone(phone);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email,
         password: registerPassword,
       });
@@ -163,6 +164,7 @@ export function AuthPanel() {
 
       setFeedback("success", "注册成功，正在跳转...");
       setBusy(false);
+      markRegistrationOnboardingPending(signInData.user.id, registerRole);
       router.replace(getRegistrationPath(registerRole));
       router.refresh();
     } catch (error) {
