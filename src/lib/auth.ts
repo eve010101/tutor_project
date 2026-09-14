@@ -1,34 +1,65 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/auth";
 import { logSupabaseQuery } from "@/lib/supabase/query-log";
+import { isSupabaseAuthCookieName } from "@/lib/supabase/auth-cookie";
 
 export function getRolePath(role?: string | null) {
   return role === "parent" ? "/parent/profile" : "/tutor/profile";
 }
 
 export async function getCurrentUserProfile() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const hasAuthCookie = cookieStore
+    .getAll()
+    .some(({ name }) => isSupabaseAuthCookieName(name));
 
-  if (!user) {
+  if (!hasAuthCookie) {
     return { user: null, profile: null };
   }
 
-  const profileResult = await supabase
-    .from("profiles")
-    .select("id, role, phone, full_name, city, bio")
-    .eq("id", user.id)
-    .maybeSingle();
-  const { data: profile } = logSupabaseQuery(
-    "current user profile",
-    profileResult,
-  );
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  return { user, profile };
+    if (userError) {
+      console.warn("[Supabase] current user lookup skipped", {
+        name: userError.name,
+        message: userError.message,
+      });
+      return { user: null, profile: null };
+    }
+
+    if (!user) {
+      return { user: null, profile: null };
+    }
+
+    const profileResult = await supabase
+      .from("profiles")
+      .select("id, role, phone, full_name, city, bio")
+      .eq("id", user.id)
+      .maybeSingle();
+    const { data: profile } = logSupabaseQuery(
+      "current user profile",
+      profileResult,
+    );
+
+    return {
+      user,
+      profile: profileResult.error ? null : profile,
+    };
+  } catch (error) {
+    console.warn("[Supabase] current user lookup failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+    return { user: null, profile: null };
+  }
 }
 
 export async function redirectAuthenticatedUser() {

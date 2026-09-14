@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseProjectUrl } from "@/lib/supabase/config";
+import {
+  fetchWithSupabaseTimeout,
+  SUPABASE_REQUEST_TIMEOUT_MS,
+} from "@/lib/supabase/fetch";
 
 export function createSupabaseAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -9,6 +13,12 @@ export function createSupabaseAdminClient() {
   }
 
   return createClient(getSupabaseProjectUrl(), key, {
+    db: {
+      timeout: SUPABASE_REQUEST_TIMEOUT_MS,
+    },
+    global: {
+      fetch: fetchWithSupabaseTimeout,
+    },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

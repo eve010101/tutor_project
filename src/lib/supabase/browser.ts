@@ -1,5 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { getSupabaseProjectUrl } from "@/lib/supabase/config";
+import {
+  fetchWithSupabaseTimeout,
+  SUPABASE_REQUEST_TIMEOUT_MS,
+} from "@/lib/supabase/fetch";
 
 export function createSupabaseBrowserClient() {
   const key =
@@ -8,6 +12,14 @@ export function createSupabaseBrowserClient() {
 
   return createBrowserClient(
     getSupabaseProjectUrl(),
-    key!
+    key!,
+    {
+      db: {
+        timeout: SUPABASE_REQUEST_TIMEOUT_MS,
+      },
+      global: {
+        fetch: fetchWithSupabaseTimeout,
+      },
+    },
   );
 }
