@@ -1,140 +1,109 @@
-# 北京家教信息撮合平台
+# 燕启家教
 
-基于 `Next.js 14 App Router + Supabase + Tailwind CSS + shadcn/ui` 的北京地区家教撮合平台初始化版本。
+一个面向北京地区的大学生家教双向撮合平台。家长可以发布结构化辅导需求，大学生家教可以展示经过审核的个人资料；只有双方都表达兴趣后，平台才会解锁联系方式。
 
-当前这版认证已经改成：
+> 项目目前处于持续开发阶段，核心的注册、资料审核、需求发布、双向匹配和联系方式解锁流程已经可以完整运行。
 
-- 用户界面输入 `手机号 + 密码`
-- `profiles.phone` 保存真实手机号
-- Supabase Auth 底层使用 `Email + Password`
-- 系统会把手机号映射成一个内部邮箱，例如 `phone-8613800000000@auth.tutor.local`
+## 为什么做这个项目
 
-这样你可以直接做手机号注册和登录测试，不需要开启 Supabase Phone Auth。
+找家教这件事看似简单，实际常常依赖微信群、朋友圈或信息中介。家长很难快速确认家教身份和能力，大学生也要在大量信息不完整的需求中反复沟通；双方为了判断是否合适，往往不得不过早公开手机号等个人信息。
 
-## 已完成
+燕启家教希望把这段流程做得更清楚、更克制：
 
-- 手机号 + 密码注册
-- 注册时选择角色：`家教 / 家长`
-- 角色自动写入 `profiles` 表
-- 手机号 + 密码登录
-- 开发环境下手机号直接重置密码
-- 注册完成后按角色跳转
-  - 家教 -> 完善资料页
-  - 家长 -> 发布需求页
+- 用结构化资料代替零散的聊天信息，让双方先判断科目、年级、区域、时间和预算是否匹配。
+- 用学籍材料审核提高家教信息的可信度，但不向所有用户公开原始证明文件。
+- 用“双向感兴趣”代替单方面索取联系方式，匹配成功后再交换联系信息。
+- 让家长和大学生家教都拥有主动选择权，减少无效沟通和隐私暴露。
 
-## 环境变量
+## 功能亮点
 
-复制 `.env.example` 为 `.env.local`：
+### 双角色使用流程
 
-```bash
-copy .env.example .env.local
-```
+- **家长端**：发布和管理家教需求，浏览已审核家教，查看详情并发起匹配。
+- **家教端**：完善个人资料和接单状态，浏览家长需求，按条件筛选并表达兴趣。
+- 注册后会根据角色进入对应的引导流程，家长与家教的数据写入权限也在数据库层隔离。
 
-填写以下变量：
+### 结构化信息与快速筛选
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=你的 Supabase Project URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=你的 Supabase Publishable Key
-NEXT_PUBLIC_SUPABASE_ANON_KEY=如果项目还是显示 anon key，也可以填这里
-SUPABASE_SERVICE_ROLE_KEY=你的 Supabase Service Role Key
-ADMIN_USER_IDS=管理员的Supabase用户UUID，多个用英文逗号分隔
-```
+- 家教资料包含学校、院系、学段、擅长科目、服务类型、授课区域、时间、课时费和个人介绍。
+- 家长需求包含科目、年级、区域、预算、上课时间、每周频次、学习现状和目标。
+- 双方列表均支持关键词搜索和多条件筛选，降低逐条询问的成本。
 
-说明：
+### 学籍审核与公开信息控制
 
-- 登录和会话使用前端 `publishable/anon key`
-- 注册和审核后台使用服务端 `SUPABASE_SERVICE_ROLE_KEY`
-- 管理后台必须配置 `ADMIN_USER_IDS`；未配置时默认拒绝所有访问
+- 家教可上传学信网 PDF 文件，单个文件最大 5 MB。
+- 审核材料保存在私有存储桶中，由管理员通过审核后台处理。
+- 只有审核通过的家教才会出现在家教列表，原始审核文件不会公开展示给家长。
 
-## Supabase 配置
+### 双向匹配与隐私保护
 
-### 1. 启用 Email Auth
+- 家长和家教都可以主动表达兴趣，也可以拒绝不合适的邀请。
+- 单方感兴趣时仅记录意向，不展示手机号。
+- 双方互选成功后自动生成匹配结果，并仅向匹配双方解锁联系方式。
+- 匹配后支持评价，以及按需请求、上传本次匹配使用的学籍证明 PDF。
 
-在 Supabase Dashboard 的 `Authentication` 中确认：
+### 管理与安全边界
 
-- 已开启 `Email`
-- 不需要开启 `Phone`
+- 管理员可审核家教资料、查看用户状态和删除非管理员账号。
+- Supabase Row Level Security（RLS）限制资料、需求、匹配记录和文件的访问范围。
+- 服务端管理操作使用 Service Role Key，管理员身份通过用户 UUID 白名单控制。
+- 手机号在界面中作为登录标识，底层映射为内部邮箱使用 Supabase Email Auth，无需开启 Phone Auth。
 
-### 2. 执行数据库 SQL
+## 使用说明
 
-在 Supabase `SQL Editor` 中执行：
+### 家长
 
-- 首次初始化： [supabase/initial_schema.sql](</C:/Users/weimi/Documents/New project/tutor-platform/supabase/initial_schema.sql>)
-- 如果你之前已经执行过旧版 SQL，再额外执行： [supabase/update_phone_alias_auth.sql](</C:/Users/weimi/Documents/New project/tutor-platform/supabase/update_phone_alias_auth.sql>)
+1. 使用手机号和密码注册，选择“家长”角色。
+2. 填写科目、年级、区域、预算、时间和学习目标，发布家教需求。
+3. 在家教列表中按科目、年级、性别、价格、区域或服务类型筛选老师。
+4. 查看家教详情并选择一条自己的需求发起“感兴趣”。
+5. 家教也表达兴趣后，平台解锁双方联系方式，可在线下继续沟通。
 
-第二个 SQL 的作用是把 `auth.users -> profiles` 的触发器改成从 `user_metadata.phone` 写入手机号。
+家长可以在个人中心编辑、关闭或重新发布自己的需求。
 
-## 本地预览
+### 家教
 
-在项目目录运行：
+1. 使用手机号和密码注册，选择“家教”角色。
+2. 完善个人资料，上传学信网 PDF，并等待管理员审核。
+3. 审核通过后，资料会出现在家教列表中；也可以随时设置“接单中”或“暂不接单”。
+4. 在需求列表中按科目、年级、服务类型、区域、预算和状态筛选家长需求。
+5. 对合适的需求表达兴趣；双方互选后即可查看家长联系方式。
 
-```bash
-cd "C:\Users\weimi\Documents\New project\tutor-platform"
-npm.cmd install
-npm.cmd run dev
-```
+家教个人中心会集中展示收到的意向、发出的意向、审核状态和已解锁的联系方式。
 
-打开：
+### 管理员
 
-[http://localhost:3000](http://localhost:3000)
+管理员账号由环境变量 `ADMIN_USER_IDS` 配置。登录后可访问：
 
-## 认证实现说明
+- `/admin/reviews`：查看学籍材料并更新家教审核状态。
+- `/admin/users`：查看用户、角色和审核状态，删除非管理员账号。
 
-### 注册
+## 技术栈
 
-注册时前端把手机号发给服务端接口：
+- [Next.js](https://nextjs.org/) 16（App Router）
+- [React](https://react.dev/) 18 + TypeScript
+- [Supabase](https://supabase.com/) Auth、Postgres、Storage、RLS
+- [Tailwind CSS](https://tailwindcss.com/) + shadcn/ui
+- [Lucide React](https://lucide.dev/) 图标
 
-- `POST /api/auth/register`
+## 当前状态
 
-服务端会：
+已经实现的主流程：
 
-1. 规范化手机号，例如 `13800000000 -> +8613800000000`
-2. 把手机号映射成内部邮箱
-3. 用 `supabase.auth.admin.createUser()` 创建用户
-4. 设置 `email_confirm: true`
-5. 把手机号和角色写到 `user_metadata`
+- 手机号 + 密码注册登录与角色分流
+- 家教资料、头像、学籍 PDF 与审核后台
+- 家长需求发布、编辑、关闭和列表筛选
+- 双向感兴趣、拒绝、匹配成功与联系方式解锁
+- 匹配后的验证文件请求和双方评价入口
+- 用户管理及数据库、存储层访问控制
 
-创建完成后，前端再立即用映射邮箱调用 `signInWithPassword` 登录。
+仍待接入或完善：
 
-### 登录
+- 短信验证码登录与密码找回
+- 匹配成功后的短信通知
+- 公开评价列表与更完整的信誉体系
+- 自动化测试与生产监控
 
-登录页面仍然输入手机号。
+## 反馈
 
-前端会先把手机号映射成内部邮箱，再调用：
-
-- `supabase.auth.signInWithPassword({ email, password })`
-
-### 重置密码
-
-当前“重置密码”只用于本地开发测试，不是生产方案。
-
-- 接口：`POST /api/auth/dev-reset-password`
-- 通过 `profiles.phone` 找到用户
-- 服务端调用 `auth.admin.updateUserById()` 修改密码
-
-生产环境应改成短信验证码或正式找回密码流程。
-
-## 主要页面
-
-- 首页： [src/app/page.tsx](</C:/Users/weimi/Documents/New project/tutor-platform/src/app/page.tsx>)
-- 登录 / 注册： [src/app/auth/page.tsx](</C:/Users/weimi/Documents/New project/tutor-platform/src/app/auth/page.tsx>)
-- 家教资料页： [src/app/tutor/profile/page.tsx](</C:/Users/weimi/Documents/New project/tutor-platform/src/app/tutor/profile/page.tsx>)
-- 家长需求页： [src/app/parent/request/page.tsx](</C:/Users/weimi/Documents/New project/tutor-platform/src/app/parent/request/page.tsx>)
-
-## 推送到 GitHub
-
-```bash
-cd "C:\Users\weimi\Documents\New project\tutor-platform"
-git add .
-git commit -m "feat: switch auth to phone alias email auth"
-git branch -M main
-git remote add origin 你的仓库地址
-git push -u origin main
-```
-
-## 已验证
-
-我会再运行一次：
-
-- `npm.cmd run lint`
-- `npm.cmd run build`
+如遇到页面问题、匹配异常或有产品建议，可通过应用内反馈页提交，或发送邮件至 `weiming_0205@qq.com`。
